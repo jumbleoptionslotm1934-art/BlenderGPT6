@@ -166,10 +166,12 @@ def _write_animation_fcurve(fcurve, frames, values, interpolations=None, clear=F
         fcurve.keyframe_points.clear()
 
     for frame, value in zip(frames, values):
+        # REPLACE does not create a missing keyframe. Use FAST for creation,
+        # then sort/deduplicate so repeated calls remain stable.
         key = fcurve.keyframe_points.insert(
             float(frame),
             float(value),
-            options={"REPLACE"},
+            options={"FAST"},
         )
         if key is not None and interpolations:
             key.interpolation = interpolations[frame]
@@ -1734,10 +1736,10 @@ def animate_object_visibility(object_name, keyframes, clear_existing):
         )
 
         viewport_curve = _ensure_animation_fcurve(
-            action, obj, "hide_viewport", -1, "GPT Blend Visibility"
+            action, obj, "hide_viewport", 0, "GPT Blend Visibility"
         )
         render_curve = _ensure_animation_fcurve(
-            action, obj, "hide_render", -1, "GPT Blend Visibility"
+            action, obj, "hide_render", 0, "GPT Blend Visibility"
         )
 
         viewport_values = [1.0 if item[1] else 0.0 for item in normalized]
