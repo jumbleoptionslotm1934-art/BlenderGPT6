@@ -237,6 +237,9 @@ def set_material(object_name, material_name, base_color, metallic, roughness):
         obj.data.materials[0] = material
     obj.active_material_index = 0
 
+    # Switch visible 3D Viewports to Material Preview so the new material is immediately visible.
+    set_viewport_shading("MATERIAL")
+
     return _result(
         True,
         f"Assigned material '{material.name}' to {obj.name}.",
@@ -250,6 +253,16 @@ def set_object_color(name, color):
     if obj is None:
         return _result(False, f"Object '{name}' was not found.")
     obj.color = [min(1.0, max(0.0, float(v))) for v in color]
+
+    # Make viewport object colors visible immediately in Solid shading.
+    for window in bpy.context.window_manager.windows:
+        screen = window.screen
+        if not screen:
+            continue
+        for area in screen.areas:
+            if area.type == "VIEW_3D":
+                area.spaces.active.shading.color_type = "OBJECT"
+
     return _result(True, f"Set viewport color on {obj.name}.", color=list(obj.color))
 
 
@@ -1006,6 +1019,10 @@ def set_procedural_texture(
     else:
         obj.data.materials[0] = material
     obj.active_material_index = 0
+
+    # Switch visible 3D Viewports to Material Preview so procedural textures are visible immediately.
+    set_viewport_shading("MATERIAL")
+
     return _result(
         True,
         f"Applied a visible {texture_type.lower()} procedural texture to {obj.name}.",
