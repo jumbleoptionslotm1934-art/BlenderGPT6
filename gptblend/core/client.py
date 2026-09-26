@@ -233,7 +233,10 @@ def send_message(
                             and verify_key
                             and arguments.get(verify_key)
                             and tool_executor is not None
+                            and tool_call_count < max_total_tool_calls
                         ):
+                            tool_call_count += 1
+                            progress("Verifying the Blender change...")
                             verification = tool_executor(
                                 "inspect_object",
                                 {"name": arguments[verify_key]},
