@@ -93,6 +93,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gptblend-0.7.0
-          path: "$RUNNER_TEMP/gptblend-0.7.0.zip"
+          path: "${{ runner.temp }}/gptblend-0.7.0.zip"
           if-no-files-found: error
           retention-days: 30
