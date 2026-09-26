@@ -2,7 +2,7 @@
 
 AI-powered Blender add-on for connecting Blender to OpenAI GPT models.
 
-## GPT Blend 0.5.4
+## GPT Blend 0.6.0
 
 GPT Blend uses OpenAI function calling to let the selected GPT model operate Blender through a structured tool layer instead of returning only Python code.
 
@@ -98,6 +98,13 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Create explicit object, camera, and light transform keyframes.
 - Choose interpolation per keyframe or across an existing action.
 - Inspect authored animation actions and keyframes.
+- Loop animations with Repeat, Offset, or Mirror cycles.
+- Add and remove timeline markers, including camera markers.
+- Configure camera depth of field.
+- Add Track To / Damped Track constraints.
+- Add Copy Transforms constraints.
+- Remove named constraints.
+- Configure render output path, still-image format, and transparent film.
 - Clear existing object animation.
 
 ### Rendering
@@ -107,7 +114,7 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Configure resolution percentage.
 - Configure frame rate.
 
-The tool layer currently contains **59 model-facing Blender tools**.
+The tool layer currently contains **67 model-facing Blender tools**.
 
 ## Installation
 
