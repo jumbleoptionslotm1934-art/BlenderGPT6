@@ -97,6 +97,7 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Configure FPS and frame range.
 - Create explicit object, camera, and light transform keyframes.
 - Choose interpolation per keyframe or across an existing action.
+- Inspect authored animation actions and keyframes.
 - Clear existing object animation.
 
 ### Rendering
