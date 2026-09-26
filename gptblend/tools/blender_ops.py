@@ -55,6 +55,30 @@ def _set_active_only(obj):
     bpy.context.view_layer.objects.active = obj
 
 
+def _ensure_object_mode():
+    if bpy.context.mode == "OBJECT":
+        return None
+    try:
+        bpy.ops.object.mode_set(mode="OBJECT")
+    except RuntimeError as exc:
+        return _result(False, f"This tool requires Blender Object Mode: {exc}")
+    return None
+
+
+def _scene_collection_names(scene):
+    names = [scene.collection.name]
+    stack = list(scene.collection.children)
+    visited = set()
+    while stack:
+        collection = stack.pop()
+        if collection in visited:
+            continue
+        visited.add(collection)
+        names.append(collection.name)
+        stack.extend(collection.children)
+    return names
+
+
 def inspect_scene():
     scene = bpy.context.scene
     all_objects = list(scene.objects)
@@ -78,7 +102,7 @@ def inspect_scene():
         mode=bpy.context.mode,
         active_object=bpy.context.active_object.name if bpy.context.active_object else None,
         camera=scene.camera.name if scene.camera else None,
-        collections=[c.name for c in bpy.data.collections],
+        collections=_scene_collection_names(scene),
         object_count=len(all_objects),
         objects_returned=len(objects),
         truncated=len(all_objects) > max_objects,
@@ -87,6 +111,9 @@ def inspect_scene():
 
 
 def create_object(object_type, name, location, scale):
+    error = _ensure_object_mode()
+    if error:
+        return error
     object_type = object_type.upper()
     if object_type not in ALLOWED_PRIMITIVES:
         return _result(False, f"Unsupported primitive: {object_type}")
@@ -135,6 +162,9 @@ def delete_object(name):
 
 
 def duplicate_object(name, new_name, location):
+    error = _ensure_object_mode()
+    if error:
+        return error
     source = _get_object(name)
     if source is None:
         return _result(False, f"Object '{name}' was not found.")
@@ -182,6 +212,7 @@ def inspect_object(name):
             "scale": [round(v, 4) for v in obj.scale],
             "dimensions": [round(v, 4) for v in obj.dimensions],
             "selected": obj.select_get(),
+            "color": [round(v, 4) for v in obj.color],
             "hidden": obj.hide_get(),
             "hidden_from_render": obj.hide_render,
             "parent": obj.parent.name if obj.parent else None,
@@ -193,6 +224,9 @@ def inspect_object(name):
 
 
 def select_objects(names, clear_existing):
+    error = _ensure_object_mode()
+    if error:
+        return error
     if clear_existing:
         bpy.ops.object.select_all(action="DESELECT")
 
@@ -479,6 +513,9 @@ def move_object_to_collection(object_name, collection_name):
 
 
 def create_light(name, light_type, location, rotation_degrees, energy, color, size):
+    error = _ensure_object_mode()
+    if error:
+        return error
     if bpy.data.objects.get(name):
         return _result(False, f"An object named '{name}' already exists.")
 
@@ -506,6 +543,9 @@ def create_light(name, light_type, location, rotation_degrees, energy, color, si
 
 
 def create_camera(name, location, rotation_degrees, lens, make_active):
+    error = _ensure_object_mode()
+    if error:
+        return error
     if bpy.data.objects.get(name):
         return _result(False, f"An object named '{name}' already exists.")
 
@@ -547,6 +587,9 @@ def set_world_background(color, strength):
 
 
 def create_text(name, body, location, rotation_degrees, size, extrude):
+    error = _ensure_object_mode()
+    if error:
+        return error
     if bpy.data.objects.get(name):
         return _result(False, f"An object named '{name}' already exists.")
 
@@ -712,6 +755,9 @@ def distribute_objects(names, axis):
 
 
 def create_empty(name, empty_type, location, size):
+    error = _ensure_object_mode()
+    if error:
+        return error
     if bpy.data.objects.get(name):
         return _result(False, f"An object named '{name}' already exists.")
 
@@ -725,6 +771,9 @@ def create_empty(name, empty_type, location, size):
 
 
 def create_bezier_curve(name, location, scale, bevel_depth, bevel_resolution):
+    error = _ensure_object_mode()
+    if error:
+        return error
     if bpy.data.objects.get(name):
         return _result(False, f"An object named '{name}' already exists.")
 
