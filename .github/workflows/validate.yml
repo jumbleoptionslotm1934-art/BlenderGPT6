@@ -81,7 +81,7 @@ jobs:
 
       - name: Validate extension package
         run: |
-          "$RUNNER_TEMP/blender/blender" --command extension validate --source-dir gptblend
+          "$RUNNER_TEMP/blender/blender" --command extension validate gptblend
 
       - name: Build extension package
         run: |
