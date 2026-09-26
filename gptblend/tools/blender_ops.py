@@ -70,6 +70,64 @@ def _ensure_object_mode():
     return None
 
 
+def _action_fcurves(action):
+    """Return all F-Curves from legacy and Blender 5.2+ layered actions."""
+    if action is None:
+        return []
+
+    legacy_fcurves = getattr(action, "fcurves", None)
+    if legacy_fcurves is not None:
+        try:
+            return list(legacy_fcurves)
+        except Exception:
+            pass
+
+    curves = []
+    layers = getattr(action, "layers", None)
+    if layers is None:
+        return curves
+
+    for layer in layers:
+        for strip in layer.strips:
+            if getattr(strip, "type", None) != "KEYFRAME":
+                continue
+            for channelbag in strip.channelbags:
+                curves.extend(list(channelbag.fcurves))
+
+    return curves
+
+
+def _remove_action_fcurves(action, predicate):
+    if action is None:
+        return
+
+    matches = [fcurve for fcurve in _action_fcurves(action) if predicate(fcurve)]
+    legacy_fcurves = getattr(action, "fcurves", None)
+    if legacy_fcurves is not None:
+        for fcurve in matches:
+            try:
+                legacy_fcurves.remove(fcurve)
+            except Exception:
+                pass
+        return
+
+    layers = getattr(action, "layers", None)
+    if layers is None:
+        return
+
+    for layer in layers:
+        for strip in layer.strips:
+            if getattr(strip, "type", None) != "KEYFRAME":
+                continue
+            for channelbag in strip.channelbags:
+                for fcurve in list(channelbag.fcurves):
+                    if fcurve in matches:
+                        try:
+                            channelbag.fcurves.remove(fcurve)
+                        except Exception:
+                            pass
+
+
 def _scene_collection_names(scene):
     names = [scene.collection.name]
     stack = list(scene.collection.children)
@@ -256,7 +314,7 @@ def inspect_object(name):
         action = obj.animation_data.action
         frames = [
             round(point.co.x, 3)
-            for fcurve in action.fcurves
+            for fcurve in _action_fcurves(action)
             for point in fcurve.keyframe_points
         ]
         animation = {
@@ -1524,7 +1582,7 @@ def animate_object_transform(object_name, keyframes, clear_existing):
 
         action = obj.animation_data.action if obj.animation_data else None
         if action:
-            for fcurve in action.fcurves:
+            for fcurve in _action_fcurves(action):
                 for key in fcurve.keyframe_points:
                     key_frame = int(round(key.co.x))
                     for authored_frame, _, _, _, interpolation in normalized:
@@ -1585,9 +1643,10 @@ def animate_object_visibility(object_name, keyframes, clear_existing):
 
         action = obj.animation_data.action if obj.animation_data else None
         if clear_existing and action:
-            for fcurve in list(action.fcurves):
-                if fcurve.data_path in {"hide_viewport", "hide_render"}:
-                    action.fcurves.remove(fcurve)
+            _remove_action_fcurves(
+                action,
+                lambda fcurve: fcurve.data_path in {"hide_viewport", "hide_render"},
+            )
 
         for frame, hide_viewport, hide_render in normalized:
             scene.frame_set(frame)
@@ -1598,7 +1657,7 @@ def animate_object_visibility(object_name, keyframes, clear_existing):
 
         action = obj.animation_data.action if obj.animation_data else None
         if action:
-            for fcurve in action.fcurves:
+            for fcurve in _action_fcurves(action):
                 if fcurve.data_path not in {"hide_viewport", "hide_render"}:
                     continue
                 for key in fcurve.keyframe_points:
@@ -1649,7 +1708,7 @@ def set_animation_interpolation(object_name, interpolation):
         return _result(False, f"Unsupported interpolation '{interpolation}'.")
 
     changed = 0
-    for fcurve in obj.animation_data.action.fcurves:
+    for fcurve in _action_fcurves(obj.animation_data.action):
         for key in fcurve.keyframe_points:
             key.interpolation = interpolation
             changed += 1
@@ -1670,7 +1729,7 @@ def inspect_animation(object_name):
 
     frames = set()
     fcurves = []
-    for fcurve in action.fcurves:
+    for fcurve in _action_fcurves(action):
         key_frames = [round(point.co.x, 3) for point in fcurve.keyframe_points]
         frames.update(int(round(frame)) for frame in key_frames)
         fcurves.append({
@@ -1816,7 +1875,7 @@ def set_animation_cycles(object_name, mode_before, mode_after, cycles_before, cy
         return _result(False, "Animation cycle modes must be NONE, REPEAT, REPEAT_OFFSET, or MIRROR.")
 
     total = 0
-    for fcurve in obj.animation_data.action.fcurves:
+    for fcurve in _action_fcurves(obj.animation_data.action):
         cycles = next((modifier for modifier in fcurve.modifiers if modifier.type == "CYCLES"), None)
         if cycles is None:
             cycles = fcurve.modifiers.new("CYCLES")
