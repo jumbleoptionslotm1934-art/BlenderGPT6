@@ -22,13 +22,22 @@ class GPTBlendSendOperator(Operator):
         if not props.prompt.strip():
             props.response = "Enter a prompt first."
             return {"FINISHED"}
+
         props.response = "Thinking..."
+
         try:
-            props.response = send_message(prefs.api_key, prefs.model, props.prompt.strip(), get_scene_context())
+            response_text, _output = send_message(
+                prefs.api_key,
+                prefs.model,
+                props.prompt.strip(),
+                get_scene_context(),
+            )
+            props.response = response_text or "GPT returned no text response."
         except GPTBlendError as exc:
             props.response = str(exc)
         except Exception as exc:
             props.response = f"Unexpected error: {exc}"
+
         props.model = prefs.model
         props.prompt = ""
         return {"FINISHED"}
