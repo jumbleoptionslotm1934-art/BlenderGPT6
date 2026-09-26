@@ -114,6 +114,8 @@ def send_message(
         "When the user asks for visible color, materials, or textures, actually create/apply the material with the material tools. "
         "When a procedural texture is requested, use set_procedural_texture rather than only changing viewport color. "
         "When the user expects to see the material or texture in the 3D viewport, use set_viewport_shading with MATERIAL as needed. "
+        "When the user asks for an animation, use the animation tools to set scene timing and create explicit transform keyframes instead of only moving the object once. "
+        "For camera, light, or object animation, use animate_object_transform and verify the authored action afterward. "
         "After important material, texture, camera, lighting, or geometry changes, verify the result with an inspection tool before claiming success. "
         "Use the provided viewport image as visual evidence when present; distinguish what is visible there from what must be verified through Blender tools.\n\n"
         f"CURRENT BLENDER CONTEXT:\n{context_text or 'No context available.'}"
