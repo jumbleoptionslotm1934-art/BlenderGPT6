@@ -25,7 +25,9 @@ def _get_object(name):
     if obj is None:
         return None
     scene = bpy.context.scene
-    return obj if obj in scene.objects else None
+    # Blender 5.2's bpy_prop_collection.__contains__ expects a string/key,
+    # not an Object instance. Use the scene collection's name lookup instead.
+    return obj if scene.objects.get(obj.name) is obj else None
 
 
 def _collection_in_scene(collection, scene):
