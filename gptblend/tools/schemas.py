@@ -688,7 +688,6 @@ TOOLS = [
         },
         "strict": True,
     },
-,
     {
         "type": "function", "name": "select_mesh_elements",
         "description": "Select exact mesh vertex, edge, or face indices on an object. Indices are based on the mesh data order.",
