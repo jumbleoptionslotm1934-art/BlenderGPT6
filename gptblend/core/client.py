@@ -78,6 +78,7 @@ def send_message(
     tool_executor=None,
     progress_callback=None,
     cancel_event=None,
+    viewport_image_data_url=None,
 ):
     if not api_key:
         raise GPTBlendError("No OpenAI API key configured.")
@@ -99,14 +100,23 @@ def send_message(
         "When the user asks for visible color, materials, or textures, actually create/apply the material with the material tools. "
         "When a procedural texture is requested, use set_procedural_texture rather than only changing viewport color. "
         "When the user expects to see the material or texture in the 3D viewport, use set_viewport_shading with MATERIAL as needed. "
-        "After important material or texture changes, use inspect_object when helpful to verify the material was assigned.\n\n"
+        "After important material, texture, camera, lighting, or geometry changes, verify the result with an inspection tool before claiming success. "
+        "Use the provided viewport image as visual evidence when present; distinguish what is visible there from what must be verified through Blender tools.\n\n"
         f"CURRENT BLENDER CONTEXT:\n{context_text or 'No context available.'}"
     )
 
     input_items = []
     if history:
         input_items.extend(history)
-    input_items.append({"role": "user", "content": user_message})
+
+    user_content = [{"type": "input_text", "text": user_message}]
+    if viewport_image_data_url:
+        user_content.append({
+            "type": "input_image",
+            "image_url": viewport_image_data_url,
+            "detail": "auto",
+        })
+    input_items.append({"role": "user", "content": user_content})
 
     payload = {
         "model": model,
