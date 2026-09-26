@@ -478,7 +478,7 @@ def create_camera(name, location, rotation_degrees, lens, make_active):
     camera_data = bpy.data.cameras.new(name=name)
     camera_data.lens = float(lens)
     camera_object = bpy.data.objects.new(name=name, object_data=camera_data)
-    bpy.context.collection.objects.link(camera_object)
+    bpy.context.scene.collection.objects.link(camera_object)
     camera_object.location = location
     camera_object.rotation_euler = [math.radians(v) for v in rotation_degrees]
 
@@ -900,10 +900,21 @@ TOOL_HANDLERS = {
 }
 
 
+READ_ONLY_TOOLS = {"inspect_scene", "inspect_object"}
+
+
 def execute_tool(name, arguments):
     handler = TOOL_HANDLERS.get(name)
     if handler is None:
         return _result(False, f"Unknown Blender tool: {name}")
+
+    if name not in READ_ONLY_TOOLS:
+        try:
+            bpy.ops.ed.undo_push(message=f"GPT Blend: {name}")
+        except Exception:
+            # Undo checkpoints are helpful but must never prevent a valid tool from running.
+            pass
+
     try:
         return handler(**arguments)
     except Exception as exc:
