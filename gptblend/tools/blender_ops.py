@@ -1450,6 +1450,220 @@ def inspect_animation(object_name):
     )
 
 
+# ---------------------------------------------------------------------------
+# Camera, constraints, animation-loop, and timeline tools
+# ---------------------------------------------------------------------------
+
+def set_camera_depth_of_field(camera_name, enabled, focus_object_name, focus_distance, fstop):
+    camera_object = _get_object(camera_name)
+    if camera_object is None:
+        return _result(False, f"Camera '{camera_name}' was not found.")
+    if camera_object.type != "CAMERA":
+        return _result(False, f"'{camera_name}' is not a camera.")
+
+    camera = camera_object.data
+    camera.dof.use_dof = bool(enabled)
+    camera.dof.aperture_fstop = max(0.1, float(fstop))
+    camera.dof.focus_distance = max(0.0, float(focus_distance))
+
+    if focus_object_name:
+        focus_object = _get_object(focus_object_name)
+        if focus_object is None:
+            return _result(False, f"Focus object '{focus_object_name}' was not found.")
+        camera.dof.focus_object = focus_object
+    else:
+        camera.dof.focus_object = None
+
+    return _result(
+        True,
+        f"Updated depth of field on {camera_object.name}.",
+        enabled=bool(camera.dof.use_dof),
+        focus_object=camera.dof.focus_object.name if camera.dof.focus_object else None,
+        focus_distance=float(camera.dof.focus_distance),
+        fstop=float(camera.dof.aperture_fstop),
+    )
+
+
+def add_tracking_constraint(object_name, target_name, tracking_type, track_axis, up_axis):
+    obj = _get_object(object_name)
+    target = _get_object(target_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if target is None:
+        return _result(False, f"Target '{target_name}' was not found.")
+    if obj == target:
+        return _result(False, "An object cannot track itself.")
+
+    tracking_type = tracking_type.upper()
+    track_axis = track_axis.upper()
+    up_axis = up_axis.upper()
+
+    if tracking_type not in {"TRACK_TO", "DAMPED_TRACK"}:
+        return _result(False, "Tracking type must be TRACK_TO or DAMPED_TRACK.")
+
+    obj.constraints.new(tracking_type)
+    constraint = obj.constraints[-1]
+    constraint.name = f"GPT Blend {tracking_type}"
+    constraint.target = target
+    constraint.track_axis = track_axis
+
+    if tracking_type == "TRACK_TO":
+        if up_axis == track_axis:
+            obj.constraints.remove(constraint)
+            return _result(False, "TRACK_TO requires different track and up axes.")
+        constraint.up_axis = up_axis
+
+    return _result(
+        True,
+        f"Added {tracking_type} constraint to {obj.name} targeting {target.name}.",
+        constraint=constraint.name,
+        target=target.name,
+    )
+
+
+def add_copy_transforms_constraint(object_name, target_name, mix_mode):
+    obj = _get_object(object_name)
+    target = _get_object(target_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if target is None:
+        return _result(False, f"Target '{target_name}' was not found.")
+    if obj == target:
+        return _result(False, "An object cannot copy transforms from itself.")
+
+    mix_mode = mix_mode.upper()
+    allowed = {"REPLACE", "BEFORE_FULL", "BEFORE", "AFTER_FULL", "AFTER"}
+    if mix_mode not in allowed:
+        return _result(False, f"Unsupported Copy Transforms mix mode: {mix_mode}.")
+
+    constraint = obj.constraints.new("COPY_TRANSFORMS")
+    constraint.name = "GPT Blend Copy Transforms"
+    constraint.target = target
+    constraint.mix_mode = mix_mode
+
+    return _result(
+        True,
+        f"Added Copy Transforms constraint to {obj.name} using {target.name}.",
+        constraint=constraint.name,
+        mix_mode=mix_mode,
+    )
+
+
+def remove_constraint(object_name, constraint_name):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    constraint = obj.constraints.get(constraint_name)
+    if constraint is None:
+        return _result(False, f"Constraint '{constraint_name}' was not found on {obj.name}.")
+    obj.constraints.remove(constraint)
+    return _result(True, f"Removed constraint '{constraint_name}' from {obj.name}.")
+
+
+def set_animation_cycles(object_name, mode_before, mode_after, cycles_before, cycles_after):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if not obj.animation_data or not obj.animation_data.action:
+        return _result(False, f"Object '{obj.name}' has no animation action.")
+
+    modes = {"NONE", "REPEAT", "REPEAT_OFFSET", "MIRROR"}
+    mode_before = mode_before.upper()
+    mode_after = mode_after.upper()
+    if mode_before not in modes or mode_after not in modes:
+        return _result(False, "Animation cycle modes must be NONE, REPEAT, REPEAT_OFFSET, or MIRROR.")
+
+    total = 0
+    for fcurve in obj.animation_data.action.fcurves:
+        cycles = next((modifier for modifier in fcurve.modifiers if modifier.type == "CYCLES"), None)
+        if cycles is None:
+            cycles = fcurve.modifiers.new("CYCLES")
+        try:
+            index = list(fcurve.modifiers).index(cycles)
+            if index != 0:
+                fcurve.modifiers.move(index, 0)
+        except Exception:
+            pass
+
+        cycles.mode_before = mode_before
+        cycles.mode_after = mode_after
+        cycles.cycles_before = max(0, int(cycles_before))
+        cycles.cycles_after = max(0, int(cycles_after))
+        total += 1
+
+    return _result(
+        True,
+        f"Configured cyclic animation on {obj.name} across {total} F-curve(s).",
+        fcurves_changed=total,
+        mode_before=mode_before,
+        mode_after=mode_after,
+        cycles_before=int(cycles_before),
+        cycles_after=int(cycles_after),
+    )
+
+
+def add_scene_marker(name, frame, camera_name):
+    scene = bpy.context.scene
+    frame = int(frame)
+    if frame < scene.frame_start or frame > scene.frame_end:
+        return _result(False, "Marker frame must be inside the scene animation range.")
+
+    existing = scene.timeline_markers.get(name)
+    if existing:
+        existing.frame = frame
+        marker = existing
+    else:
+        marker = scene.timeline_markers.new(name=name, frame=frame)
+
+    if camera_name:
+        camera = _get_object(camera_name)
+        if camera is None or camera.type != "CAMERA":
+            return _result(False, f"Camera '{camera_name}' was not found.")
+        marker.camera = camera
+    else:
+        marker.camera = None
+
+    return _result(
+        True,
+        f"Added timeline marker '{marker.name}' at frame {marker.frame}.",
+        name=marker.name,
+        frame=marker.frame,
+        camera=marker.camera.name if marker.camera else None,
+    )
+
+
+def remove_scene_marker(name):
+    scene = bpy.context.scene
+    marker = scene.timeline_markers.get(name)
+    if marker is None:
+        return _result(False, f"Timeline marker '{name}' was not found.")
+    scene.timeline_markers.remove(marker)
+    return _result(True, f"Removed timeline marker '{name}'.")
+
+
+def set_render_output(output_path, image_format, film_transparent):
+    scene = bpy.context.scene
+    allowed_formats = {"PNG", "JPEG", "OPEN_EXR", "OPEN_EXR_MULTILAYER", "TIFF", "BMP", "TARGA"}
+    image_format = image_format.upper()
+    if image_format not in allowed_formats:
+        return _result(False, f"Unsupported image format '{image_format}'.")
+
+    if not output_path:
+        return _result(False, "Output path cannot be empty.")
+
+    scene.render.filepath = output_path
+    scene.render.image_settings.file_format = image_format
+    scene.render.film_transparent = bool(film_transparent)
+
+    return _result(
+        True,
+        "Updated render output settings.",
+        output_path=scene.render.filepath,
+        image_format=scene.render.image_settings.file_format,
+        film_transparent=bool(scene.render.film_transparent),
+    )
+
+
 TOOL_HANDLERS = {
     "inspect_scene": inspect_scene,
     "create_object": create_object,
@@ -1510,6 +1724,14 @@ TOOL_HANDLERS = {
     "animate_object_transform": animate_object_transform,
     "clear_object_animation": clear_object_animation,
     "set_animation_interpolation": set_animation_interpolation,
+    "set_camera_depth_of_field": set_camera_depth_of_field,
+    "add_tracking_constraint": add_tracking_constraint,
+    "add_copy_transforms_constraint": add_copy_transforms_constraint,
+    "remove_constraint": remove_constraint,
+    "set_animation_cycles": set_animation_cycles,
+    "add_scene_marker": add_scene_marker,
+    "remove_scene_marker": remove_scene_marker,
+    "set_render_output": set_render_output,
 }
 
 READ_ONLY_TOOLS = {"inspect_scene", "inspect_object", "inspect_animation"}
