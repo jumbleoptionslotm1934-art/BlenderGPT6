@@ -24,7 +24,12 @@ VERIFY_OBJECT_ARGUMENT = {
     "set_object_dimensions": "name",
     "apply_object_scale": "name",
     "set_procedural_texture": "object_name",
+    "create_light": "name",
+    "set_light_settings": "light_name",
+    "create_camera": "name",
+    "set_camera_settings": "camera_name",
     "animate_object_transform": "object_name",
+    "animate_object_visibility": "object_name",
     "set_animation_cycles": "object_name",
     "set_camera_depth_of_field": "camera_name",
     "add_tracking_constraint": "object_name",
@@ -183,7 +188,7 @@ def send_message(
         tool_calls = [item for item in data.get("output", []) if item.get("type") == "function_call"]
 
         if not tool_calls:
-            return _extract_text(data), data.get("output", []), data.get("id")
+            return _extract_text(data), data.get("output", []), data.get("id"), data.get("usage") or {}
 
         tool_outputs = []
         for call in tool_calls:
@@ -239,25 +244,40 @@ def send_message(
                             result = run_tool(call.get("name"), arguments)
 
                         verify_key = VERIFY_OBJECT_ARGUMENT.get(call.get("name"))
-                        if (
-                            result.get("ok")
-                            and verify_key
-                            and arguments.get(verify_key)
-                            and tool_executor is not None
-                            and tool_call_count < max_total_tool_calls
-                        ):
-                            tool_call_count += 1
-                            progress("Verifying the Blender change...")
+                        verification_tool = None
+                        verification_args = None
+
+                        if call.get("name") in {
+                            "set_animation_timing",
+                            "set_render_settings",
+                            "set_render_output",
+                            "add_scene_marker",
+                            "remove_scene_marker",
+                            "set_world_background",
+                        }:
+                            verification_tool = "inspect_scene"
+                            verification_args = {}
+                        elif verify_key:
                             verification_tool = (
                                 "inspect_animation"
-                                if call.get("name") == "animate_object_transform"
+                                if call.get("name") in {"animate_object_transform", "animate_object_visibility"}
                                 else "inspect_object"
                             )
                             verification_args = (
-                                {"object_name": arguments[verify_key]}
+                                {"object_name": arguments.get(verify_key)}
                                 if verification_tool == "inspect_animation"
-                                else {"name": arguments[verify_key]}
+                                else {"name": arguments.get(verify_key)}
                             )
+
+                        if (
+                            result.get("ok")
+                            and verification_tool
+                            and tool_executor is not None
+                            and tool_call_count < max_total_tool_calls
+                            and (not verify_key or arguments.get(verify_key))
+                        ):
+                            tool_call_count += 1
+                            progress("Verifying the Blender change...")
                             verification = tool_executor(
                                 verification_tool,
                                 verification_args,
@@ -265,16 +285,24 @@ def send_message(
                             if verification.get("ok"):
                                 result["verification"] = (
                                     verification
-                                    if verification_tool == "inspect_animation"
+                                    if verification_tool in {"inspect_scene", "inspect_animation"}
                                     else verification.get("object")
                                 )
                     except Exception as exc:
                         result = {"ok": False, "message": f"Tool execution error: {exc}"}
 
+            try:
+                serialized_result = json.dumps(result)
+            except (TypeError, ValueError) as exc:
+                serialized_result = json.dumps({
+                    "ok": bool(result.get("ok")),
+                    "message": str(result.get("message", "Tool result could not be serialized.")),
+                    "serialization_error": str(exc),
+                })
             tool_outputs.append({
                 "type": "function_call_output",
                 "call_id": call.get("call_id"),
-                "output": json.dumps(result),
+                "output": serialized_result,
             })
 
         payload = {
