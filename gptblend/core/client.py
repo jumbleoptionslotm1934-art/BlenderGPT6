@@ -75,6 +75,9 @@ def send_message(
     max_total_tool_calls=MAX_TOTAL_TOOL_CALLS,
     loop_protection=True,
     allow_destructive_operations=False,
+    tool_executor=None,
+    progress_callback=None,
+    cancel_event=None,
 ):
     if not api_key:
         raise GPTBlendError("No OpenAI API key configured.")
@@ -116,12 +119,27 @@ def send_message(
     last_signature = None
     identical_call_count = 0
 
-    for _ in range(max_tool_rounds):
+    def progress(message):
+        if progress_callback:
+            try:
+                progress_callback(message)
+            except Exception:
+                pass
+
+    def cancelled():
+        return bool(cancel_event and cancel_event.is_set())
+
+    for round_index in range(max_tool_rounds):
+        if cancelled():
+            raise GPTBlendError("GPT Blend task cancelled.")
+        progress(f"Thinking (round {round_index + 1}/{max_tool_rounds})")
+
         if tool_call_count >= max_total_tool_calls:
             raise GPTBlendError(
                 f"GPT Blend stopped after {max_total_tool_calls} total tool calls to prevent runaway execution."
             )
 
+        progress("Waiting for OpenAI...")
         data = _request(api_key, payload)
         tool_calls = [item for item in data.get("output", []) if item.get("type") == "function_call"]
 
@@ -172,8 +190,14 @@ def send_message(
                         ),
                     }
                 else:
+                    if cancelled():
+                        raise GPTBlendError("GPT Blend task cancelled.")
+                    progress(f"Executing {call.get('name')}...")
                     try:
-                        result = run_tool(call.get("name"), arguments)
+                        if tool_executor is not None:
+                            result = tool_executor(call.get("name"), arguments)
+                        else:
+                            result = run_tool(call.get("name"), arguments)
                     except Exception as exc:
                         result = {"ok": False, "message": f"Tool execution error: {exc}"}
 
