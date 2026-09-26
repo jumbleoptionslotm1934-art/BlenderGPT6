@@ -64,4 +64,31 @@ def get_scene_context():
         "object_count": len(scene.objects),
         "collections": _scene_collection_names(scene),
         "world": scene.world.name if scene.world else None,
+        "world_background": (
+            {
+                "color": list(scene.world.node_tree.nodes["Background"].inputs["Color"].default_value[:3]),
+                "strength": float(scene.world.node_tree.nodes["Background"].inputs["Strength"].default_value),
+            }
+            if scene.world and scene.world.use_nodes and scene.world.node_tree.nodes.get("Background")
+            else None
+        ),
+        "animation": {
+            "fps": float(scene.render.fps),
+            "start_frame": scene.frame_start,
+            "end_frame": scene.frame_end,
+            "current_frame": scene.frame_current,
+        },
+        "render": {
+            "engine": scene.render.engine,
+            "resolution": [scene.render.resolution_x, scene.render.resolution_y],
+            "resolution_percentage": scene.render.resolution_percentage,
+            "image_format": scene.render.image_settings.file_format,
+            "output_path": scene.render.filepath,
+            "film_transparent": bool(scene.render.film_transparent),
+        },
+        "units": {
+            "system": scene.unit_settings.system,
+            "length_unit": scene.unit_settings.length_unit,
+            "scale_length": float(scene.unit_settings.scale_length),
+        },
     }, indent=2)
