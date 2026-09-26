@@ -21,7 +21,11 @@ def _result(ok, message, **extra):
 
 
 def _get_object(name):
-    return bpy.data.objects.get(name)
+    obj = bpy.data.objects.get(name)
+    if obj is None:
+        return None
+    scene = bpy.context.scene
+    return obj if obj in scene.objects else None
 
 
 def _collection_in_scene(collection, scene):
@@ -31,9 +35,10 @@ def _collection_in_scene(collection, scene):
     visited = set()
     while stack:
         current = stack.pop()
-        if current in visited:
+        key = current.as_pointer()
+        if key in visited:
             continue
-        visited.add(current)
+        visited.add(key)
         if current == collection:
             return True
         stack.extend(current.children)
@@ -304,14 +309,17 @@ def set_object_color(name, color):
         return _result(False, f"Object '{name}' was not found.")
     obj.color = [min(1.0, max(0.0, float(v))) for v in color]
 
-    # Make viewport object colors visible immediately in Solid shading.
+    # Object display colors are used by Solid shading, so switch visible
+    # 3D Viewports to Solid and set their color source to Object.
     for window in bpy.context.window_manager.windows:
         screen = window.screen
         if not screen:
             continue
         for area in screen.areas:
             if area.type == "VIEW_3D":
-                area.spaces.active.shading.color_type = "OBJECT"
+                shading = area.spaces.active.shading
+                shading.type = "SOLID"
+                shading.color_type = "OBJECT"
 
     return _result(True, f"Set viewport color on {obj.name}.", color=list(obj.color))
 
