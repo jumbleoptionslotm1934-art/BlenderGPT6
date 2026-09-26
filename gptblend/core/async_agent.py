@@ -53,6 +53,7 @@ class AsyncAgentJob:
         self.response_text = ""
         self.response_id = None
         self.output = None
+        self.usage = {}
         self.tool_calls = 0
         self.events = []
         self.started_at = time.monotonic()
@@ -106,7 +107,7 @@ class AsyncAgentJob:
 
     def _run(self):
         try:
-            response_text, output, response_id = send_message(
+            response_text, output, response_id, usage = send_message(
                 self.api_key,
                 self.model,
                 self.user_message,
@@ -126,6 +127,7 @@ class AsyncAgentJob:
                 self.response_text = response_text or "GPT returned no text response."
                 self.output = output
                 self.response_id = response_id
+                self.usage = usage or {}
                 self.status = "Ready"
         except GPTBlendError as exc:
             with self.lock:
@@ -150,6 +152,7 @@ class AsyncAgentJob:
                 "response_text": self.response_text,
                 "response_id": self.response_id,
                 "output": self.output,
+                "usage": dict(self.usage),
                 "tool_calls": self.tool_calls,
                 "events": list(self.events),
                 "elapsed_seconds": round(time.monotonic() - self.started_at, 2),
