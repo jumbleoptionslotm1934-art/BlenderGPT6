@@ -1,4 +1,4 @@
-# GPT Blend
+# BlenderGPT6
 
 AI-powered Blender add-on for OpenAI GPT models. Control Blender with natural language for 3D modeling, mesh editing, materials, cameras, lighting, animation, rendering, and scene automation.
 
@@ -6,7 +6,7 @@ AI-powered Blender add-on for OpenAI GPT models. Control Blender with natural la
 ![OpenAI](https://img.shields.io/badge/OpenAI-GPT--6-412991?logo=openai&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-GPT Blend is a Blender AI assistant, BlenderGPT-style add-on, and OpenAI Blender plugin that lets an AI agent inspect and modify Blender through structured tools instead of only generating Python scripts.
+BlenderGPT6 is a Blender AI assistant, BlenderGPT-style add-on, and OpenAI Blender plugin that lets an AI agent inspect and modify Blender through structured tools instead of only generating Python scripts.
 
 ## Highlights
 
@@ -22,7 +22,7 @@ GPT Blend is a Blender AI assistant, BlenderGPT-style add-on, and OpenAI Blender
 
 ## What people search for
 
-GPT Blend is useful for people looking for:
+BlenderGPT6 is useful for people looking for:
 
 - Blender AI
 - Blender AI assistant
@@ -38,11 +38,11 @@ GPT Blend is useful for people looking for:
 - Blender AI camera and lighting setup
 - Blender AI scene generation
 
-## GPT Blend 0.8.0
+## BlenderGPT6 0.8.0
 
-GPT Blend 0.8.0 adds the GPT-6 model family to the Blender model picker while keeping the current GPT-5.6 family available.
+BlenderGPT6 0.8.0 adds the GPT-6 model family to the Blender model picker while keeping the current GPT-5.6 family available.
 
-### Current OpenAI models in GPT Blend
+### Current OpenAI models in BlenderGPT6
 
 | Model | API ID |
 | --- | --- |
@@ -53,16 +53,16 @@ GPT Blend 0.8.0 adds the GPT-6 model family to the Blender model picker while ke
 | GPT-5.6 Terra | `gpt-5.6-terra` |
 | GPT-5.6 Luna | `gpt-5.6-luna` |
 
-OpenAI's current API model catalog lists GPT-6 Astra, GPT-6 Sol, and GPT-6 Luna as the GPT-6 flagship family, with GPT-5.6 Sol, Terra, and Luna also available in the API. GPT Blend uses the documented API IDs directly.
+OpenAI's current API model catalog lists GPT-6 Astra, GPT-6 Sol, and GPT-6 Luna as the GPT-6 flagship family, with GPT-5.6 Sol, Terra, and Luna also available in the API. BlenderGPT6 uses the documented API IDs directly.
 
 Official OpenAI model documentation:
 
 - https://developers.openai.com/api/docs/models
 - https://developers.openai.com/api/docs/guides/latest-model
 
-## Why GPT Blend?
+## Why BlenderGPT6?
 
-Many Blender AI tools focus on generating a Python script and asking the user to execute it. GPT Blend instead exposes Blender as a structured tool environment to the model.
+Many Blender AI tools focus on generating a Python script and asking the user to execute it. BlenderGPT6 instead exposes Blender as a structured tool environment to the model.
 
 The agent can:
 
@@ -74,7 +74,7 @@ The agent can:
 6. Inspect the result and verify important changes.
 7. Continue until the task is complete or a safety limit is reached.
 
-This makes GPT Blend suitable for multi-step workflows such as building a scene, assigning materials, arranging objects, setting up lights and cameras, creating animation, and configuring render output.
+This makes BlenderGPT6 suitable for multi-step workflows such as building a scene, assigning materials, arranging objects, setting up lights and cameras, creating animation, and configuring render output.
 
 ## Blender AI capabilities
 
@@ -161,7 +161,7 @@ This makes GPT Blend suitable for multi-step workflows such as building a scene,
 - Render visibility animation.
 - Clear existing animation.
 
-GPT Blend's animation implementation has been tested against **Blender 5.2.2 LTS** using a real headless Blender runtime test covering action creation, F-Curves, keyframes, animation evaluation, visibility animation, inspection, and animation clearing.
+BlenderGPT6's animation implementation has been tested against **Blender 5.2.2 LTS** using a real headless Blender runtime test covering action creation, F-Curves, keyframes, animation evaluation, visibility animation, inspection, and animation clearing.
 
 ### Rendering
 
@@ -191,21 +191,21 @@ GPT Blend's animation implementation has been tested against **Blender 5.2.2 LTS
 
 ## Installation
 
-1. Download the GPT Blend extension ZIP from the latest successful GitHub Actions package build.
+1. Download the BlenderGPT6 extension ZIP from the latest successful GitHub Actions package build.
 2. Open **Blender 5.2 or newer**.
 3. Go to **Edit → Preferences → Get Extensions**.
 4. Choose **Install from Disk**.
-5. Select the GPT Blend `.zip` package.
-6. Enable GPT Blend.
+5. Select the BlenderGPT6 `.zip` package.
+6. Enable BlenderGPT6.
 7. Open the 3D View Sidebar with **N**.
-8. Open the **GPT Blend** panel.
+8. Open the **BlenderGPT6** panel.
 9. Enter your OpenAI API key in Preferences.
 10. Select GPT-6 Astra, GPT-6 Sol, GPT-6 Luna, or another supported GPT model.
 11. Send a natural-language Blender request.
 
 ## Architecture
 
-GPT Blend uses an OpenAI Responses API agent loop + structured Blender tools:
+BlenderGPT6 uses an OpenAI Responses API agent loop + structured Blender tools:
 
 ```text
 Natural-language prompt
@@ -241,7 +241,7 @@ These controls are intended to limit runaway tool loops and accidental destructi
 
 ## Visual context
 
-When enabled, GPT Blend can capture the active Blender 3D Viewport and send the image as additional model context.
+When enabled, BlenderGPT6 can capture the active Blender 3D Viewport and send the image as additional model context.
 
 Visual context can help with:
 
@@ -254,7 +254,7 @@ Visual context can help with:
 
 ## UI
 
-The GPT Blend sidebar includes:
+The BlenderGPT6 sidebar includes:
 
 - Connection status
 - Model selector
@@ -276,7 +276,7 @@ Changing the selected model starts a model-specific session.
 
 ## Verification
 
-GPT Blend can verify important changes after tool execution.
+BlenderGPT6 can verify important changes after tool execution.
 
 Examples include:
 
@@ -288,7 +288,7 @@ Verification is counted toward the configured tool-call safety limit.
 
 ## Privacy and API keys
 
-GPT Blend sends prompts and selected Blender scene/viewport context to the OpenAI API when you use it.
+BlenderGPT6 sends prompts and selected Blender scene/viewport context to the OpenAI API when you use it.
 
 Never publish your OpenAI API key.
 
@@ -302,7 +302,7 @@ Check the OpenAI API key, selected model, network connection, and whether that m
 
 ### Blender animation error
 
-Restart Blender after installing a new GPT Blend build so Blender loads the updated Python modules.
+Restart Blender after installing a new BlenderGPT6 build so Blender loads the updated Python modules.
 
 ### Repeated tool calls
 
@@ -316,16 +316,16 @@ Some material operations intentionally switch the viewport to Material Preview s
 
 | Path | Purpose |
 | --- | --- |
-| `gptblend/core/client.py` | OpenAI Responses API client and tool loop |
-| `gptblend/core/async_agent.py` | Worker-thread orchestration |
-| `gptblend/tools/schemas.py` | Model-facing tool definitions |
-| `gptblend/tools/blender_ops.py` | Blender tool implementations |
-| `gptblend/tools/registry.py` | Tool registry |
-| `gptblend/context/scene.py` | Scene context |
-| `gptblend/context/viewport.py` | Viewport image capture |
-| `gptblend/ui/operators.py` | Blender operators and polling |
-| `gptblend/ui/panel.py` | Sidebar UI |
-| `gptblend/preferences.py` | API/model/safety preferences |
+| `blendergpt6/core/client.py` | OpenAI Responses API client and tool loop |
+| `blendergpt6/core/async_agent.py` | Worker-thread orchestration |
+| `blendergpt6/tools/schemas.py` | Model-facing tool definitions |
+| `blendergpt6/tools/blender_ops.py` | Blender tool implementations |
+| `blendergpt6/tools/registry.py` | Tool registry |
+| `blendergpt6/context/scene.py` | Scene context |
+| `blendergpt6/context/viewport.py` | Viewport image capture |
+| `blendergpt6/ui/operators.py` | Blender operators and polling |
+| `blendergpt6/ui/panel.py` | Sidebar UI |
+| `blendergpt6/preferences.py` | API/model/safety preferences |
 | `tests/test_animation_runtime.py` | Blender runtime animation test |
 | `tests/validate_tool_surface.py` | Tool/schema consistency test |
 | `.github/workflows/validate.yml` | CI validation and packaging |
@@ -338,16 +338,16 @@ The package job also validates the Blender extension manifest and builds an inst
 
 ## Version
 
-GPT Blend 0.8.0
+BlenderGPT6 0.8.0
 
 Target Blender version: 5.2.0+
 
 License: MIT
 
-Repository: https://github.com/jumbleoptionslotm1934-art/GPTBlend
+Repository: https://github.com/jumbleoptionslotm1934-art/BlenderGPT6
 
 ## Contributing
 
-Bug reports should include the Blender version, GPT Blend version, selected model/API ID, exact prompt, and relevant error or tool output.
+Bug reports should include the Blender version, BlenderGPT6 version, selected model/API ID, exact prompt, and relevant error or tool output.
 
 Never include an OpenAI API key in an issue, pull request, screenshot, or log.
