@@ -21,11 +21,16 @@ def capture_viewport_data_url():
         f"gptblend_viewport_{uuid.uuid4().hex}.png",
     )
 
+    scene = bpy.context.scene
+    original_filepath = scene.render.filepath
+    original_format = scene.render.image_settings.file_format
+
     try:
+        scene.render.filepath = filepath
+        scene.render.image_settings.file_format = "PNG"
         result = bpy.ops.render.opengl(
             write_still=True,
             view_context=True,
-            filepath=filepath,
         )
         if "FINISHED" not in result or not os.path.exists(filepath):
             return None
@@ -36,6 +41,8 @@ def capture_viewport_data_url():
     except Exception:
         return None
     finally:
+        scene.render.filepath = original_filepath
+        scene.render.image_settings.file_format = original_format
         try:
             if os.path.exists(filepath):
                 os.remove(filepath)
