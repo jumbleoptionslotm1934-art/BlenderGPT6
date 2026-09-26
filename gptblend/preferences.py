@@ -16,11 +16,14 @@ class GPTBlendPreferences(AddonPreferences):
     model: EnumProperty(
         name="Model",
         items=[
-            ("gpt-5.6-luna", "GPT-5.6 Luna", "Cost-sensitive, high-volume model"),
-            ("gpt-5.6-sol", "GPT-5.6 Sol", "Flagship model for complex reasoning and coding"),
-            ("gpt-5.6-terra", "GPT-5.6 Terra", "Balanced intelligence and cost"),
+            ("gpt-6-astra", "GPT-6 Astra", "Current GPT-6 flagship model for demanding agentic work"),
+            ("gpt-6-sol", "GPT-6 Sol", "GPT-6 model for complex coding and agentic workflows"),
+            ("gpt-6-luna", "GPT-6 Luna", "GPT-6 model for efficient, high-volume work"),
+            ("gpt-5.6-sol", "GPT-5.6 Sol", "GPT-5.6 flagship model"),
+            ("gpt-5.6-terra", "GPT-5.6 Terra", "GPT-5.6 model balancing capability and cost"),
+            ("gpt-5.6-luna", "GPT-5.6 Luna", "GPT-5.6 model for cost-sensitive, high-volume work"),
         ],
-        default="gpt-5.6-luna",
+        default="gpt-6-sol",
     )
 
     max_tool_rounds: IntProperty(
