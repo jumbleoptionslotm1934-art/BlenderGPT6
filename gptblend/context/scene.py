@@ -6,7 +6,8 @@ def get_scene_context():
     scene = bpy.context.scene
 
     selected = []
-    for obj in bpy.context.selected_objects:
+    selected_objects = list(bpy.context.selected_objects)[:100]
+    for obj in selected_objects:
         materials = []
         if hasattr(obj.data, "materials"):
             materials = [m.name if m else None for m in obj.data.materials]
@@ -41,6 +42,8 @@ def get_scene_context():
         "active_object": bpy.context.active_object.name if bpy.context.active_object else None,
         "active_camera": scene.camera.name if scene.camera else None,
         "selected_objects": selected,
+        "selected_objects_returned": len(selected),
+        "selected_objects_truncated": len(bpy.context.selected_objects) > len(selected),
         "object_count": len(scene.objects),
         "collections": [c.name for c in bpy.data.collections],
         "world": scene.world.name if scene.world else None,
