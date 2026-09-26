@@ -854,4 +854,128 @@ TOOLS = [
         },
         "strict": True,
     }
+,
+    {
+        "type": "function", "name": "set_camera_depth_of_field",
+        "description": "Configure a camera's depth of field, optional focus object, focus distance, and f-stop.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "camera_name": {"type": "string"},
+                "enabled": {"type": "boolean"},
+                "focus_object_name": {"type": "string"},
+                "focus_distance": {"type": "number", "minimum": 0},
+                "fstop": {"type": "number", "minimum": 0.1, "maximum": 100}
+            },
+            "required": ["camera_name", "enabled", "focus_object_name", "focus_distance", "fstop"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_tracking_constraint",
+        "description": "Add a Track To or Damped Track constraint so an object points at a target. Damped Track is useful when Track To up-axis stability is undesirable.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "target_name": {"type": "string"},
+                "tracking_type": {"type": "string", "enum": ["TRACK_TO", "DAMPED_TRACK"]},
+                "track_axis": {"type": "string", "enum": ["X", "Y", "Z", "NEG_X", "NEG_Y", "NEG_Z"]},
+                "up_axis": {"type": "string", "enum": ["X", "Y", "Z", "NEG_X", "NEG_Y", "NEG_Z"]}
+            },
+            "required": ["object_name", "target_name", "tracking_type", "track_axis", "up_axis"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_copy_transforms_constraint",
+        "description": "Make one object follow another object's location, rotation, and scale through a Copy Transforms constraint.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "target_name": {"type": "string"},
+                "mix_mode": {"type": "string", "enum": ["REPLACE", "BEFORE_FULL", "BEFORE", "AFTER_FULL", "AFTER"]}
+            },
+            "required": ["object_name", "target_name", "mix_mode"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "remove_constraint",
+        "description": "Remove a named constraint from an object.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "constraint_name": {"type": "string"}
+            },
+            "required": ["object_name", "constraint_name"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "set_animation_cycles",
+        "description": "Configure looping behavior for all F-curves in an object's current action.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "mode_before": {"type": "string", "enum": ["NONE", "REPEAT", "REPEAT_OFFSET", "MIRROR"]},
+                "mode_after": {"type": "string", "enum": ["NONE", "REPEAT", "REPEAT_OFFSET", "MIRROR"]},
+                "cycles_before": {"type": "integer", "minimum": 0, "maximum": 32767},
+                "cycles_after": {"type": "integer", "minimum": 0, "maximum": 32767}
+            },
+            "required": ["object_name", "mode_before", "mode_after", "cycles_before", "cycles_after"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_scene_marker",
+        "description": "Add or update a named timeline marker inside the current scene's frame range, optionally assigning a camera.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "frame": {"type": "integer", "minimum": 1, "maximum": 100000},
+                "camera_name": {"type": "string"}
+            },
+            "required": ["name", "frame", "camera_name"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "remove_scene_marker",
+        "description": "Remove a named scene timeline marker.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"}
+            },
+            "required": ["name"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "set_render_output",
+        "description": "Configure the render output path, still-image format, and transparent-film option.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "output_path": {"type": "string"},
+                "image_format": {"type": "string", "enum": ["PNG", "JPEG", "OPEN_EXR", "OPEN_EXR_MULTILAYER", "TIFF", "BMP", "TARGA"]},
+                "film_transparent": {"type": "boolean"}
+            },
+            "required": ["output_path", "image_format", "film_transparent"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    }
 ]
