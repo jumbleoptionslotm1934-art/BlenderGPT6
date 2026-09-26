@@ -125,12 +125,30 @@ def inspect_scene():
                 for marker in scene.timeline_markers
             ],
         },
+        units={
+            "system": scene.unit_settings.system,
+            "length_unit": scene.unit_settings.length_unit,
+            "scale_length": float(scene.unit_settings.scale_length),
+        },
+        world=(
+            {
+                "name": scene.world.name,
+                "use_nodes": bool(scene.world.use_nodes),
+                "background_color": list(scene.world.node_tree.nodes["Background"].inputs["Color"].default_value[:3])
+                if scene.world.use_nodes and scene.world.node_tree.nodes.get("Background") else None,
+                "background_strength": float(scene.world.node_tree.nodes["Background"].inputs["Strength"].default_value)
+                if scene.world.use_nodes and scene.world.node_tree.nodes.get("Background") else None,
+            }
+            if scene.world else None
+        ),
         render={
             "engine": scene.render.engine,
             "resolution": [scene.render.resolution_x, scene.render.resolution_y],
             "resolution_percentage": scene.render.resolution_percentage,
+            "pixel_aspect": [scene.render.pixel_aspect_x, scene.render.pixel_aspect_y],
             "output_path": scene.render.filepath,
             "image_format": scene.render.image_settings.file_format,
+            "film_transparent": bool(scene.render.film_transparent),
         },
         objects=objects,
     )
@@ -249,14 +267,34 @@ def inspect_object(name):
         }
 
     camera_settings = None
+    light_settings = None
     if obj.type == "CAMERA":
         camera = obj.data
         camera_settings = {
+            "type": camera.type,
             "lens": float(camera.lens),
+            "ortho_scale": float(camera.ortho_scale),
+            "clip_start": float(camera.clip_start),
+            "clip_end": float(camera.clip_end),
+            "shift_x": float(camera.shift_x),
+            "shift_y": float(camera.shift_y),
+            "sensor_width": float(camera.sensor_width),
             "dof_enabled": bool(camera.dof.use_dof),
             "dof_focus_object": camera.dof.focus_object.name if camera.dof.focus_object else None,
             "dof_focus_distance": float(camera.dof.focus_distance),
             "dof_fstop": float(camera.dof.aperture_fstop),
+        }
+    elif obj.type == "LIGHT":
+        light = obj.data
+        light_settings = {
+            "type": light.type,
+            "energy": float(light.energy),
+            "color": list(light.color),
+            "shadow_soft_size": float(light.shadow_soft_size) if light.type in {"POINT", "SPOT"} else None,
+            "area_size": float(light.size) if light.type == "AREA" else None,
+            "spot_size_degrees": math.degrees(light.spot_size) if light.type == "SPOT" else None,
+            "spot_blend": float(light.spot_blend) if light.type == "SPOT" else None,
+            "sun_angle_degrees": math.degrees(light.angle) if light.type == "SUN" else None,
         }
 
     return _result(
@@ -280,6 +318,7 @@ def inspect_object(name):
             "constraints": constraints,
             "animation": animation,
             "camera_settings": camera_settings,
+            "light_settings": light_settings,
         },
     )
 
@@ -606,6 +645,44 @@ def create_light(name, light_type, location, rotation_degrees, energy, color, si
     )
 
 
+def set_light_settings(light_name, energy, color, shadow_size, spot_size_degrees, spot_blend, sun_angle_degrees):
+    light_object = _get_object(light_name)
+    if light_object is None:
+        return _result(False, f"Light '{light_name}' was not found.")
+    if light_object.type != "LIGHT":
+        return _result(False, f"'{light_name}' is not a light.")
+
+    light = light_object.data
+    light.energy = max(0.0, float(energy))
+    light.color = [min(1.0, max(0.0, float(v))) for v in color]
+
+    shadow_size = max(0.0001, float(shadow_size))
+    if light.type in {"POINT", "SPOT"}:
+        light.shadow_soft_size = shadow_size
+    elif light.type == "AREA":
+        light.shape = "DISK"
+        light.size = shadow_size
+
+    if light.type == "SPOT":
+        light.spot_size = math.radians(max(0.1, min(179.9, float(spot_size_degrees))))
+        light.spot_blend = min(1.0, max(0.0, float(spot_blend)))
+
+    if light.type == "SUN":
+        light.angle = math.radians(max(0.0, min(180.0, float(sun_angle_degrees))))
+
+    return _result(
+        True,
+        f"Updated light settings on {light_object.name}.",
+        type=light.type,
+        energy=float(light.energy),
+        color=list(light.color),
+        shadow_size=shadow_size,
+        spot_size_degrees=math.degrees(light.spot_size) if light.type == "SPOT" else None,
+        spot_blend=float(light.spot_blend) if light.type == "SPOT" else None,
+        sun_angle_degrees=math.degrees(light.angle) if light.type == "SUN" else None,
+    )
+
+
 def create_camera(name, location, rotation_degrees, lens, make_active):
     error = _ensure_object_mode()
     if error:
@@ -628,6 +705,48 @@ def create_camera(name, location, rotation_degrees, lens, make_active):
         True,
         f"Created camera '{camera_object.name}'." + (" It is now the active scene camera." if make_active else ""),
         name=camera_object.name,
+    )
+
+
+def set_camera_settings(camera_name, camera_type, lens, ortho_scale, clip_start, clip_end, shift_x, shift_y):
+    camera_object = _get_object(camera_name)
+    if camera_object is None:
+        return _result(False, f"Camera '{camera_name}' was not found.")
+    if camera_object.type != "CAMERA":
+        return _result(False, f"'{camera_name}' is not a camera.")
+
+    camera_type = camera_type.upper()
+    if camera_type not in {"PERSP", "ORTHO", "PANO"}:
+        return _result(False, "Camera type must be PERSP, ORTHO, or PANO.")
+
+    lens = float(lens)
+    ortho_scale = float(ortho_scale)
+    clip_start = float(clip_start)
+    clip_end = float(clip_end)
+    if lens <= 0 or ortho_scale <= 0:
+        return _result(False, "Lens and orthographic scale must be greater than zero.")
+    if clip_start <= 0 or clip_end <= clip_start:
+        return _result(False, "Camera clip_end must be greater than clip_start.")
+
+    camera = camera_object.data
+    camera.type = camera_type
+    camera.lens = lens
+    camera.ortho_scale = ortho_scale
+    camera.clip_start = clip_start
+    camera.clip_end = clip_end
+    camera.shift_x = float(shift_x)
+    camera.shift_y = float(shift_y)
+
+    return _result(
+        True,
+        f"Updated camera settings on {camera_object.name}.",
+        camera_type=camera.type,
+        lens=float(camera.lens),
+        ortho_scale=float(camera.ortho_scale),
+        clip_start=float(camera.clip_start),
+        clip_end=float(camera.clip_end),
+        shift_x=float(camera.shift_x),
+        shift_y=float(camera.shift_y),
     )
 
 
@@ -1432,6 +1551,74 @@ def animate_object_transform(object_name, keyframes, clear_existing):
         return _result(False, f"Could not animate '{obj.name}': {exc}")
 
 
+def animate_object_visibility(object_name, keyframes, clear_existing):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if not keyframes:
+        return _result(False, "At least one visibility keyframe is required.")
+
+    error = _ensure_object_mode()
+    if error:
+        return error
+
+    scene = bpy.context.scene
+    original_frame = scene.frame_current
+
+    try:
+        normalized = []
+        for keyframe in keyframes:
+            frame = int(keyframe["frame"])
+            if frame < 1:
+                return _result(False, f"Invalid keyframe frame {frame}. Frames must be at least 1.")
+            normalized.append(
+                (
+                    frame,
+                    bool(keyframe["hide_viewport"]),
+                    bool(keyframe["hide_render"]),
+                )
+            )
+
+        normalized.sort(key=lambda item: item[0])
+        if len(normalized) > 1 and len({item[0] for item in normalized}) != len(normalized):
+            return _result(False, "Visibility keyframes must use distinct frame numbers.")
+
+        action = obj.animation_data.action if obj.animation_data else None
+        if clear_existing and action:
+            for fcurve in list(action.fcurves):
+                if fcurve.data_path in {"hide_viewport", "hide_render"}:
+                    action.fcurves.remove(fcurve)
+
+        for frame, hide_viewport, hide_render in normalized:
+            scene.frame_set(frame)
+            obj.hide_viewport = hide_viewport
+            obj.hide_render = hide_render
+            obj.keyframe_insert(data_path="hide_viewport", frame=frame, group="GPT Blend Visibility")
+            obj.keyframe_insert(data_path="hide_render", frame=frame, group="GPT Blend Visibility")
+
+        action = obj.animation_data.action if obj.animation_data else None
+        if action:
+            for fcurve in action.fcurves:
+                if fcurve.data_path not in {"hide_viewport", "hide_render"}:
+                    continue
+                for key in fcurve.keyframe_points:
+                    key.interpolation = "CONSTANT"
+
+        scene.frame_set(max(scene.frame_start, min(original_frame, scene.frame_end)))
+        return _result(
+            True,
+            f"Animated viewport/render visibility for {obj.name} with {len(normalized)} keyframe(s).",
+            object_name=obj.name,
+            keyframes=[frame for frame, _, _ in normalized],
+        )
+    except Exception as exc:
+        try:
+            scene.frame_set(max(scene.frame_start, min(original_frame, scene.frame_end)))
+        except Exception:
+            pass
+        return _result(False, f"Could not animate visibility on '{obj.name}': {exc}")
+
+
 def clear_object_animation(object_name):
     obj = _get_object(object_name)
     if obj is None:
@@ -1751,7 +1938,9 @@ TOOL_HANDLERS = {
     "create_collection": create_collection,
     "move_object_to_collection": move_object_to_collection,
     "create_light": create_light,
+    "set_light_settings": set_light_settings,
     "create_camera": create_camera,
+    "set_camera_settings": set_camera_settings,
     "set_world_background": set_world_background,
     "create_text": create_text,
     "move_object_delta": move_object_delta,
@@ -1784,6 +1973,7 @@ TOOL_HANDLERS = {
     "unwrap_uv": unwrap_uv,
     "set_animation_timing": set_animation_timing,
     "animate_object_transform": animate_object_transform,
+    "animate_object_visibility": animate_object_visibility,
     "clear_object_animation": clear_object_animation,
     "set_animation_interpolation": set_animation_interpolation,
     "set_camera_depth_of_field": set_camera_depth_of_field,
