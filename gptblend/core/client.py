@@ -255,7 +255,11 @@ def send_message(
                                 verification_args,
                             )
                             if verification.get("ok"):
-                                result["verification"] = verification.get("object")
+                                result["verification"] = (
+                                    verification
+                                    if verification_tool == "inspect_animation"
+                                    else verification.get("object")
+                                )
                     except Exception as exc:
                         result = {"ok": False, "message": f"Tool execution error: {exc}"}
 
