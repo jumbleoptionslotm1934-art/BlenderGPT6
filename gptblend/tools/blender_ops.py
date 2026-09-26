@@ -902,7 +902,138 @@ TOOL_HANDLERS = {
     "add_weighted_normal_modifier": add_weighted_normal_modifier,
     "aim_object_at": aim_object_at,
     "set_render_settings": set_render_settings,
+    "set_procedural_texture": set_procedural_texture,
+    "set_viewport_shading": set_viewport_shading,
 }
+
+
+
+def set_procedural_texture(
+    object_name,
+    material_name,
+    texture_type,
+    color_a,
+    color_b,
+    scale,
+    detail,
+    roughness,
+    bump_strength,
+):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if not hasattr(obj.data, "materials"):
+        return _result(False, f"Object '{object_name}' does not support materials.")
+
+    material = bpy.data.materials.get(material_name) or bpy.data.materials.new(material_name)
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    principled = nodes.new("ShaderNodeBsdfPrincipled")
+    texcoord = nodes.new("ShaderNodeTexCoord")
+    ramp = nodes.new("ShaderNodeValToRGB")
+    bump = nodes.new("ShaderNodeBump")
+
+    output.location = (600, 0)
+    principled.location = (360, 0)
+    bump.location = (120, -180)
+    ramp.location = (-120, 120)
+    texcoord.location = (-620, 0)
+
+    texture_type = texture_type.upper()
+    texture_nodes = {
+        "NOISE": "ShaderNodeTexNoise",
+        "VORONOI": "ShaderNodeTexVoronoi",
+        "WAVE": "ShaderNodeTexWave",
+        "BRICK": "ShaderNodeTexBrick",
+    }
+    node_type = texture_nodes.get(texture_type)
+    if not node_type:
+        return _result(False, f"Unsupported procedural texture type: {texture_type}")
+
+    texture = nodes.new(node_type)
+    texture.location = (-360, 100)
+    texture.label = f"GPT Blend {texture_type} Texture"
+
+    texture_inputs = texture.inputs
+    if texture_inputs.get("Scale"):
+        texture_inputs["Scale"].default_value = float(scale)
+    if texture_inputs.get("Detail"):
+        texture_inputs["Detail"].default_value = float(detail)
+    if texture_inputs.get("Roughness"):
+        texture_inputs["Roughness"].default_value = float(roughness)
+
+    if texture_type == "BRICK":
+        if texture_inputs.get("Color1"):
+            texture_inputs["Color1"].default_value = [min(1, max(0, float(v))) for v in color_a]
+        if texture_inputs.get("Color2"):
+            texture_inputs["Color2"].default_value = [min(1, max(0, float(v))) for v in color_b]
+    else:
+        ramp.color_ramp.elements[0].position = 0.25
+        ramp.color_ramp.elements[0].color = [min(1, max(0, float(v))) for v in color_a]
+        ramp.color_ramp.elements[1].position = 0.75
+        ramp.color_ramp.elements[1].color = [min(1, max(0, float(v))) for v in color_b]
+
+    links.new(texcoord.outputs["Generated"], texture.inputs["Vector"])
+
+    texture_color = texture.outputs.get("Color")
+    texture_factor = texture.outputs.get("Fac")
+    if texture_color and texture_type != "BRICK":
+        links.new(texture_color, ramp.inputs["Fac"])
+        links.new(ramp.outputs["Color"], principled.inputs["Base Color"])
+    elif texture_factor:
+        links.new(texture_factor, ramp.inputs["Fac"])
+        links.new(ramp.outputs["Color"], principled.inputs["Base Color"])
+    elif texture_color:
+        links.new(texture_color, principled.inputs["Base Color"])
+
+    if texture_factor and bump_strength > 0:
+        links.new(texture_factor, bump.inputs["Height"])
+        bump.inputs["Strength"].default_value = float(bump_strength)
+        bump.inputs["Distance"].default_value = 0.15
+        links.new(bump.outputs["Normal"], principled.inputs["Normal"])
+
+    if principled.inputs.get("Roughness"):
+        principled.inputs["Roughness"].default_value = float(roughness)
+
+    links.new(principled.outputs["BSDF"], output.inputs["Surface"])
+
+    if material not in obj.data.materials:
+        obj.data.materials.append(material)
+    else:
+        obj.active_material_index = list(obj.data.materials).index(material)
+
+    obj.active_material_index = list(obj.data.materials).index(material)
+    return _result(
+        True,
+        f"Applied a visible {texture_type.lower()} procedural texture to {obj.name}.",
+        object_name=obj.name,
+        material_name=material.name,
+        texture_type=texture_type,
+    )
+
+
+def set_viewport_shading(shading_type):
+    shading_type = shading_type.upper()
+    if shading_type not in {"SOLID", "MATERIAL", "RENDERED"}:
+        return _result(False, f"Unsupported viewport shading type: {shading_type}")
+
+    changed = 0
+    for window in bpy.context.window_manager.windows:
+        screen = window.screen
+        if not screen:
+            continue
+        for area in screen.areas:
+            if area.type == "VIEW_3D":
+                area.spaces.active.shading.type = shading_type
+                changed += 1
+
+    if changed == 0:
+        return _result(False, "No visible 3D Viewport areas were found.")
+    return _result(True, f"Set {changed} 3D Viewport(s) to {shading_type.lower()} shading.")
 
 
 READ_ONLY_TOOLS = {"inspect_scene", "inspect_object"}
