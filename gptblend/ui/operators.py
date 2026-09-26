@@ -15,23 +15,11 @@ _TIMER_REGISTERED = False
 
 
 def _append_chat(props, role, message):
-    try:
-        entries = json.loads(props.chat_log or "[]")
-        if not isinstance(entries, list):
-            entries = []
-    except Exception:
-        entries = []
-
-    entries.append({
-        "role": role,
-        "text": str(message),
-        "time": time.strftime("%H:%M:%S"),
-    })
-    entries = entries[-40:]
-    props.chat_log = "\n".join(
-        f"[{entry['time']}] {entry['role'].upper()}: {entry['text']}"
-        for entry in entries
+    lines = props.chat_log.splitlines() if props.chat_log else []
+    lines.append(
+        f"[{time.strftime('%H:%M:%S')}] {role.upper()}: {str(message)}"
     )
+    props.chat_log = "\n".join(lines[-40:])
 
 
 def _scene_props():
