@@ -2,7 +2,7 @@
 
 AI-powered Blender add-on for connecting Blender to OpenAI GPT models.
 
-## GPT Blend 0.3.1
+## GPT Blend 0.4.0
 
 GPT Blend uses OpenAI function calling to let the selected GPT model operate Blender through a structured tool layer instead of returning only Python code.
 
@@ -46,6 +46,8 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Create/update Principled materials.
 - Assign base color, metallic, and roughness.
 - Set viewport display colors.
+- Procedural Noise, Voronoi, Wave, and Brick textures with optional bump detail.
+- Automatic Material Preview when GPT assigns a material or procedural texture.
 - Smooth or flat shade meshes.
 
 ### Modeling and modifiers
@@ -118,7 +120,7 @@ GPT Blend uses structured Blender operations rather than unrestricted generated 
 
 Mutating GPT operations create Blender undo checkpoints when Blender permits them.
 
-The current request execution remains synchronous, so Blender can stay busy while a long model/tool sequence is running. Async main-thread-safe execution and richer visual workspace understanding are the next major architectural upgrades.
+Network/model generation now runs off Blender's main thread. Blender tool calls that modify Blender data are marshalled back to Blender's main thread, keeping the UI responsive while GPT is thinking. A heavy Blender operation itself can still temporarily occupy the main thread, but waiting on the OpenAI API no longer freezes the interface.
 
 ## Development
 
