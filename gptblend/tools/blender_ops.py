@@ -41,6 +41,8 @@ def _set_active_only(obj):
 
 def inspect_scene():
     scene = bpy.context.scene
+    all_objects = list(scene.objects)
+    max_objects = 200
     objects = [{
         "name": o.name,
         "type": o.type,
@@ -52,7 +54,7 @@ def inspect_scene():
         "hidden_from_render": o.hide_render,
         "parent": o.parent.name if o.parent else None,
         "collections": [c.name for c in o.users_collection],
-    } for o in scene.objects]
+    } for o in all_objects[:max_objects]]
     return _result(
         True,
         "Scene inspected.",
@@ -61,6 +63,9 @@ def inspect_scene():
         active_object=bpy.context.active_object.name if bpy.context.active_object else None,
         camera=scene.camera.name if scene.camera else None,
         collections=[c.name for c in bpy.data.collections],
+        object_count=len(all_objects),
+        objects_returned=len(objects),
+        truncated=len(all_objects) > max_objects,
         objects=objects,
     )
 
