@@ -2,6 +2,23 @@ import bpy
 import json
 
 
+def _scene_collection_names(scene):
+    names = [scene.collection.name]
+    stack = list(scene.collection.children)
+    visited = set()
+
+    while stack:
+        collection = stack.pop()
+        key = collection.as_pointer()
+        if key in visited:
+            continue
+        visited.add(key)
+        names.append(collection.name)
+        stack.extend(collection.children)
+
+    return names
+
+
 def get_scene_context():
     scene = bpy.context.scene
 
@@ -45,6 +62,6 @@ def get_scene_context():
         "selected_objects_returned": len(selected),
         "selected_objects_truncated": len(bpy.context.selected_objects) > len(selected),
         "object_count": len(scene.objects),
-        "collections": [c.name for c in bpy.data.collections],
+        "collections": _scene_collection_names(scene),
         "world": scene.world.name if scene.world else None,
     }, indent=2)
