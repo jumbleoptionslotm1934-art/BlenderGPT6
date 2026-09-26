@@ -1,5 +1,7 @@
 import bpy
+import bmesh
 import math
+from mathutils import Vector
 
 
 ALLOWED_PRIMITIVES = {
@@ -1002,6 +1004,191 @@ def set_viewport_shading(shading_type):
         return _result(False, "No visible 3D Viewport areas were found.")
     return _result(True, f"Set {changed} 3D Viewport(s) to {shading_type.lower()} shading.")
 
+# ---------------------------------------------------------------------------
+# Edit Mode / UV workflow tools
+# ---------------------------------------------------------------------------
+
+def _prepare_edit_mesh(object_name):
+    obj = _get_object(object_name)
+    if obj is None:
+        return None, None, _result(False, f"Object '{object_name}' was not found.")
+    if obj.type != "MESH":
+        return None, None, _result(False, f"Object '{object_name}' must be a mesh.")
+    try:
+        if bpy.context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        _set_active_only(obj)
+        bpy.ops.object.mode_set(mode="EDIT")
+        return obj, bmesh.from_edit_mesh(obj.data), None
+    except Exception as exc:
+        return None, None, _result(False, f"Could not enter Edit Mode for '{object_name}': {exc}")
+
+
+def select_mesh_elements(object_name, domain, indices, extend):
+    obj, bm, error = _prepare_edit_mesh(object_name)
+    if error:
+        return error
+
+    try:
+        domain = domain.upper()
+        if not extend:
+            for collection in (bm.verts, bm.edges, bm.faces):
+                for element in collection:
+                    element.select = False
+
+        collection = {
+            "VERT": bm.verts,
+            "EDGE": bm.edges,
+            "FACE": bm.faces,
+        }.get(domain)
+        if collection is None:
+            return _result(False, "Domain must be VERT, EDGE, or FACE.")
+
+        collection.ensure_lookup_table()
+        selected = 0
+        missing = []
+        for index in indices:
+            index = int(index)
+            if 0 <= index < len(collection):
+                collection[index].select = True
+                selected += 1
+            else:
+                missing.append(index)
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+        return _result(
+            True,
+            f"Selected {selected} {domain.lower()} element(s) on {obj.name}.",
+            selected=selected,
+            missing_indices=missing,
+        )
+    finally:
+        try:
+            bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def set_mesh_selection_mode(mode):
+    mode = mode.upper()
+    modes = {
+        "VERT": (True, False, False),
+        "EDGE": (False, True, False),
+        "FACE": (False, False, True),
+    }
+    selection_mode = modes.get(mode)
+    if selection_mode is None:
+        return _result(False, "Mesh selection mode must be VERT, EDGE, or FACE.")
+
+    bpy.context.tool_settings.mesh_select_mode = selection_mode
+    return _result(True, f"Mesh selection mode set to {mode.lower()}.")
+
+
+def merge_selected_vertices(object_name, distance):
+    obj, bm, error = _prepare_edit_mesh(object_name)
+    if error:
+        return error
+
+    try:
+        verts = [vert for vert in bm.verts if vert.select]
+        if not verts:
+            return _result(False, f"No selected vertices on {obj.name}.")
+        bmesh.ops.remove_doubles(bm, verts=verts, dist=float(distance))
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=True)
+        return _result(True, f"Merged selected vertices on {obj.name}.", vertex_count=len(verts))
+    finally:
+        try:
+            bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def dissolve_selected(object_name):
+    obj, bm, error = _prepare_edit_mesh(object_name)
+    if error:
+        return error
+
+    try:
+        faces = [face for face in bm.faces if face.select]
+        edges = [edge for edge in bm.edges if edge.select]
+        verts = [vert for vert in bm.verts if vert.select]
+        if faces:
+            bmesh.ops.dissolve_faces(bm, faces=faces, use_verts=False)
+            action = f"Dissolved {len(faces)} face(s)"
+        elif edges:
+            bmesh.ops.dissolve_edges(bm, edges=edges, use_verts=False, use_face_split=False)
+            action = f"Dissolved {len(edges)} edge(s)"
+        elif verts:
+            bmesh.ops.dissolve_verts(bm, verts=verts, use_face_split=False)
+            action = f"Dissolved {len(verts)} vertex/vertices"
+        else:
+            return _result(False, f"No selected mesh elements on {obj.name}.")
+
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=True)
+        return _result(True, f"{action} on {obj.name}.")
+    finally:
+        try:
+            bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def extrude_selected_faces(object_name, offset):
+    obj, bm, error = _prepare_edit_mesh(object_name)
+    if error:
+        return error
+
+    try:
+        faces = [face for face in bm.faces if face.select]
+        if not faces:
+            return _result(False, f"No selected faces on {obj.name}.")
+        result = bmesh.ops.extrude_face_region(bm, geom=faces)
+        new_verts = [element for element in result.get("geom", []) if isinstance(element, bmesh.types.BMVert)]
+        delta = Vector(tuple(float(v) for v in offset))
+        bmesh.ops.translate(bm, vec=delta, verts=new_verts)
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=True)
+        return _result(
+            True,
+            f"Extruded {len(faces)} selected face(s) on {obj.name}.",
+            offset=list(delta),
+        )
+    finally:
+        try:
+            bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
+def unwrap_uv(object_name, method):
+    obj, bm, error = _prepare_edit_mesh(object_name)
+    if error:
+        return error
+
+    try:
+        for face in bm.faces:
+            face.select = True
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+
+        method = method.upper()
+        if method == "SMART_PROJECT":
+            result = bpy.ops.uv.smart_project()
+        elif method == "ANGLE_BASED":
+            result = bpy.ops.uv.unwrap(method="ANGLE_BASED")
+        else:
+            return _result(False, "UV unwrap method must be SMART_PROJECT or ANGLE_BASED.")
+
+        if "FINISHED" not in result:
+            return _result(False, f"UV unwrap did not finish for {obj.name}.")
+        return _result(True, f"UV unwrapped {obj.name} using {method.lower()}.")
+    except Exception as exc:
+        return _result(False, f"UV unwrap failed for {obj.name}: {exc}")
+    finally:
+        try:
+            bpy.ops.object.mode_set(mode="OBJECT")
+        except Exception:
+            pass
+
+
 TOOL_HANDLERS = {
     "inspect_scene": inspect_scene,
     "create_object": create_object,
@@ -1051,6 +1238,12 @@ TOOL_HANDLERS = {
     "set_render_settings": set_render_settings,
     "set_procedural_texture": set_procedural_texture,
     "set_viewport_shading": set_viewport_shading,
+    "select_mesh_elements": select_mesh_elements,
+    "set_mesh_selection_mode": set_mesh_selection_mode,
+    "merge_selected_vertices": merge_selected_vertices,
+    "dissolve_selected": dissolve_selected,
+    "extrude_selected_faces": extrude_selected_faces,
+    "unwrap_uv": unwrap_uv,
 }
 
 READ_ONLY_TOOLS = {"inspect_scene", "inspect_object"}
