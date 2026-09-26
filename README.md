@@ -71,6 +71,12 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Join objects.
 - Create Bezier curves.
 - Create 3D text.
+- Select mesh vertices, edges, and faces.
+- Set mesh selection mode.
+- Merge selected vertices.
+- Dissolve selected mesh elements.
+- Extrude selected faces.
+- Smart Project or Angle Based UV unwrap.
 
 ### Scene organization
 
