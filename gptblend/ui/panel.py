@@ -53,7 +53,10 @@ class GPTBlendPanel(Panel):
         layout.prop(props, "prompt", text="")
 
         row = layout.row(align=True)
-        row.operator("gptblend.send", icon="CONSOLE", text="Send to GPT")
+        if props.status not in {"Ready", "Error", "Cancelled", "New session", "Waiting for prompt"}:
+            row.operator("gptblend.stop", icon="CANCEL", text="Stop")
+        else:
+            row.operator("gptblend.send", icon="CONSOLE", text="Send to GPT")
         row.operator("gptblend.new_chat", icon="FILE_NEW", text="New Chat")
 
         layout.operator("gptblend.clear", icon="X")
