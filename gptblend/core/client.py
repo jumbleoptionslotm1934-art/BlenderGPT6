@@ -95,7 +95,11 @@ def send_message(
         "or collections are uncertain. "
         "Do not delete objects unless the user explicitly requests deletion. "
         "Do not apply modifiers, join objects, or change scene structure unless it helps fulfill the user's request. "
-        "Keep changes scoped to the user's request and avoid unnecessary edits.\n\n"
+        "Keep changes scoped to the user's request and avoid unnecessary edits. "
+        "When the user asks for visible color, materials, or textures, actually create/apply the material with the material tools. "
+        "When a procedural texture is requested, use set_procedural_texture rather than only changing viewport color. "
+        "When the user expects to see the material or texture in the 3D viewport, use set_viewport_shading with MATERIAL as needed. "
+        "After important material or texture changes, use inspect_object when helpful to verify the material was assigned.\n\n"
         f"CURRENT BLENDER CONTEXT:\n{context_text or 'No context available.'}"
     )
 
