@@ -530,6 +530,325 @@ def create_text(name, body, location, rotation_degrees, size, extrude):
 
     return _result(True, f"Created text object '{text_object.name}'.", name=text_object.name)
 
+def move_object_delta(name, offset):
+    obj = _get_object(name)
+    if obj is None:
+        return _result(False, f"Object '{name}' was not found.")
+    obj.location.x += float(offset[0])
+    obj.location.y += float(offset[1])
+    obj.location.z += float(offset[2])
+    return _result(True, f"Moved {obj.name} by {offset}.", location=list(obj.location))
+
+
+def rotate_object_delta(name, rotation_delta_degrees):
+    obj = _get_object(name)
+    if obj is None:
+        return _result(False, f"Object '{name}' was not found.")
+    for index, degrees in enumerate(rotation_delta_degrees):
+        obj.rotation_euler[index] += math.radians(float(degrees))
+    return _result(True, f"Rotated {obj.name} by {rotation_delta_degrees} degrees.")
+
+
+def set_object_dimensions(name, dimensions):
+    obj = _get_object(name)
+    if obj is None:
+        return _result(False, f"Object '{name}' was not found.")
+    dims = [max(0.0001, float(v)) for v in dimensions]
+    try:
+        obj.dimensions = dims
+    except (TypeError, ValueError) as exc:
+        return _result(False, f"Could not set dimensions on {obj.name}: {exc}")
+    return _result(True, f"Set dimensions of {obj.name}.", dimensions=list(obj.dimensions))
+
+
+def apply_object_scale(name):
+    obj = _get_object(name)
+    if obj is None:
+        return _result(False, f"Object '{name}' was not found.")
+    if bpy.context.mode != "OBJECT":
+        return _result(False, "Applying scale requires Blender Object Mode.")
+    _set_active_only(obj)
+    try:
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    except RuntimeError as exc:
+        return _result(False, f"Could not apply scale: {exc}")
+    return _result(True, f"Applied scale on {obj.name}.")
+
+
+def batch_transform_objects(names, location_offset, rotation_delta_degrees, scale_multiplier):
+    missing = []
+    changed = []
+    offset = [float(v) for v in location_offset]
+    rotation = [math.radians(float(v)) for v in rotation_delta_degrees]
+    scale = [float(v) for v in scale_multiplier]
+
+    for name in names:
+        obj = _get_object(name)
+        if obj is None:
+            missing.append(name)
+            continue
+        obj.location = [obj.location[i] + offset[i] for i in range(3)]
+        obj.rotation_euler = [obj.rotation_euler[i] + rotation[i] for i in range(3)]
+        obj.scale = [obj.scale[i] * scale[i] for i in range(3)]
+        changed.append(obj.name)
+
+    if missing:
+        return _result(False, f"Some objects were not found: {', '.join(missing)}.", changed=changed, missing=missing)
+    return _result(True, f"Batch-transformed {len(changed)} objects.", changed=changed)
+
+
+def arrange_objects_linear(names, axis, start, spacing, preserve_other_axes):
+    objects = []
+    missing = []
+    for name in names:
+        obj = _get_object(name)
+        if obj is None:
+            missing.append(name)
+        else:
+            objects.append(obj)
+
+    if missing:
+        return _result(False, f"Some objects were not found: {', '.join(missing)}.", missing=missing)
+
+    axis_index = {"X": 0, "Y": 1, "Z": 2}[axis]
+    for index, obj in enumerate(objects):
+        if preserve_other_axes:
+            obj.location[axis_index] = float(start) + index * float(spacing)
+        else:
+            location = [0.0, 0.0, 0.0]
+            location[axis_index] = float(start) + index * float(spacing)
+            obj.location = location
+
+    return _result(True, f"Arranged {len(objects)} objects along {axis}.", objects=[o.name for o in objects])
+
+
+def align_objects(names, axis, mode):
+    objects = []
+    missing = []
+    for name in names:
+        obj = _get_object(name)
+        if obj is None:
+            missing.append(name)
+        else:
+            objects.append(obj)
+
+    if missing:
+        return _result(False, f"Some objects were not found: {', '.join(missing)}.", missing=missing)
+
+    axis_index = {"X": 0, "Y": 1, "Z": 2}[axis]
+    values = [obj.location[axis_index] for obj in objects]
+    if mode == "MIN":
+        target = min(values)
+    elif mode == "MAX":
+        target = max(values)
+    else:
+        target = (min(values) + max(values)) / 2.0
+
+    for obj in objects:
+        obj.location[axis_index] = target
+
+    return _result(True, f"Aligned {len(objects)} objects on {axis} using {mode}.", value=target)
+
+
+def distribute_objects(names, axis):
+    objects = []
+    missing = []
+    for name in names:
+        obj = _get_object(name)
+        if obj is None:
+            missing.append(name)
+        else:
+            objects.append(obj)
+
+    if missing:
+        return _result(False, f"Some objects were not found: {', '.join(missing)}.", missing=missing)
+    if len(objects) < 3:
+        return _result(False, "At least three objects are required to distribute them.")
+
+    axis_index = {"X": 0, "Y": 1, "Z": 2}[axis]
+    objects = sorted(objects, key=lambda obj: obj.location[axis_index])
+    first = objects[0].location[axis_index]
+    last = objects[-1].location[axis_index]
+    step = (last - first) / (len(objects) - 1)
+
+    for index, obj in enumerate(objects):
+        obj.location[axis_index] = first + step * index
+
+    return _result(True, f"Distributed {len(objects)} objects on {axis}.")
+
+
+def create_empty(name, empty_type, location, size):
+    if bpy.data.objects.get(name):
+        return _result(False, f"An object named '{name}' already exists.")
+
+    empty = bpy.data.objects.new(name=name, object_data=None)
+    bpy.context.scene.collection.objects.link(empty)
+    empty.empty_display_type = empty_type
+    empty.empty_display_size = float(size)
+    empty.location = location
+    _set_active_only(empty)
+    return _result(True, f"Created Empty '{empty.name}'.", name=empty.name)
+
+
+def create_bezier_curve(name, location, scale, bevel_depth, bevel_resolution):
+    if bpy.data.objects.get(name):
+        return _result(False, f"An object named '{name}' already exists.")
+
+    bpy.ops.curve.primitive_bezier_curve_add(location=location)
+    curve_object = bpy.context.object
+    curve_object.name = name
+    curve_object.scale = scale
+    curve_data = curve_object.data
+    curve_data.dimensions = "3D"
+    curve_data.bevel_depth = float(bevel_depth)
+    curve_data.bevel_resolution = int(bevel_resolution)
+    _set_active_only(curve_object)
+    return _result(True, f"Created Bezier curve '{curve_object.name}'.", name=curve_object.name)
+
+
+def _ensure_mesh_modifier_object(object_name, modifier_name, modifier_type):
+    obj = _get_object(object_name)
+    if obj is None:
+        return None, _result(False, f"Object '{object_name}' was not found.")
+    if obj.type != "MESH":
+        return None, _result(False, f"'{object_name}' must be a mesh object.")
+    if obj.modifiers.get(modifier_name):
+        return None, _result(False, f"Modifier '{modifier_name}' already exists on {object_name}.")
+    return obj, None
+
+
+def add_array_modifier(object_name, modifier_name, count, relative_offset):
+    obj, error = _ensure_mesh_modifier_object(object_name, modifier_name, "ARRAY")
+    if error:
+        return error
+    modifier = obj.modifiers.new(modifier_name, "ARRAY")
+    modifier.count = int(count)
+    modifier.use_relative_offset = True
+    modifier.relative_offset_displace = tuple(float(v) for v in relative_offset)
+    return _result(True, f"Added Array modifier '{modifier.name}' to {obj.name}.")
+
+
+def add_mirror_modifier(object_name, modifier_name, use_x, use_y, use_z, use_clip):
+    obj, error = _ensure_mesh_modifier_object(object_name, modifier_name, "MIRROR")
+    if error:
+        return error
+    if not any((use_x, use_y, use_z)):
+        return _result(False, "At least one Mirror axis must be enabled.")
+    modifier = obj.modifiers.new(modifier_name, "MIRROR")
+    modifier.use_axis[0] = bool(use_x)
+    modifier.use_axis[1] = bool(use_y)
+    modifier.use_axis[2] = bool(use_z)
+    modifier.use_clip = bool(use_clip)
+    return _result(True, f"Added Mirror modifier '{modifier.name}' to {obj.name}.")
+
+
+def add_solidify_modifier(object_name, modifier_name, thickness, offset):
+    obj, error = _ensure_mesh_modifier_object(object_name, modifier_name, "SOLIDIFY")
+    if error:
+        return error
+    modifier = obj.modifiers.new(modifier_name, "SOLIDIFY")
+    modifier.thickness = float(thickness)
+    modifier.offset = float(offset)
+    return _result(True, f"Added Solidify modifier '{modifier.name}' to {obj.name}.")
+
+
+def add_boolean_modifier(object_name, modifier_name, operand_name, operation):
+    obj, error = _ensure_mesh_modifier_object(object_name, modifier_name, "BOOLEAN")
+    if error:
+        return error
+    operand = _get_object(operand_name)
+    if operand is None:
+        return _result(False, f"Operand object '{operand_name}' was not found.")
+    if operand.type != "MESH":
+        return _result(False, f"Operand '{operand_name}' must be a mesh object.")
+    if obj == operand:
+        return _result(False, "Boolean object and operand must be different objects.")
+
+    modifier = obj.modifiers.new(modifier_name, "BOOLEAN")
+    modifier.operation = operation
+    modifier.solver = "EXACT"
+    modifier.object = operand
+    return _result(True, f"Added Boolean {operation} modifier '{modifier.name}' to {obj.name} using {operand.name}.")
+
+
+def add_shrinkwrap_modifier(object_name, modifier_name, target_name, offset):
+    obj, error = _ensure_mesh_modifier_object(object_name, modifier_name, "SHRINKWRAP")
+    if error:
+        return error
+    target = _get_object(target_name)
+    if target is None:
+        return _result(False, f"Target object '{target_name}' was not found.")
+    modifier = obj.modifiers.new(modifier_name, "SHRINKWRAP")
+    modifier.target = target
+    modifier.offset = float(offset)
+    return _result(True, f"Added Shrinkwrap modifier '{modifier.name}' to {obj.name} targeting {target.name}.")
+
+
+def add_simple_deform_modifier(object_name, modifier_name, deform_method, deform_axis, angle_degrees):
+    obj, error = _ensure_mesh_modifier_object(object_name, modifier_name, "SIMPLE_DEFORM")
+    if error:
+        return error
+    modifier = obj.modifiers.new(modifier_name, "SIMPLE_DEFORM")
+    modifier.deform_method = deform_method
+    modifier.deform_axis = deform_axis
+    modifier.angle = math.radians(float(angle_degrees))
+    return _result(True, f"Added {deform_method} Simple Deform modifier '{modifier.name}' to {obj.name}.")
+
+
+def add_decimate_modifier(object_name, modifier_name, ratio):
+    obj, error = _ensure_mesh_modifier_object(object_name, modifier_name, "DECIMATE")
+    if error:
+        return error
+    modifier = obj.modifiers.new(modifier_name, "DECIMATE")
+    modifier.ratio = float(ratio)
+    return _result(True, f"Added Decimate modifier '{modifier.name}' to {obj.name}.", ratio=float(ratio))
+
+
+def add_weighted_normal_modifier(object_name, modifier_name, keep_sharp):
+    obj, error = _ensure_mesh_modifier_object(object_name, modifier_name, "WEIGHTED_NORMAL")
+    if error:
+        return error
+    modifier = obj.modifiers.new(modifier_name, "WEIGHTED_NORMAL")
+    modifier.keep_sharp = bool(keep_sharp)
+    return _result(True, f"Added Weighted Normal modifier '{modifier.name}' to {obj.name}.")
+
+
+def aim_object_at(object_name, target_name):
+    obj = _get_object(object_name)
+    target = _get_object(target_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if target is None:
+        return _result(False, f"Target object '{target_name}' was not found.")
+
+    direction = target.matrix_world.translation - obj.matrix_world.translation
+    if direction.length < 0.000001:
+        return _result(False, "Object and target are at the same location.")
+
+    obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+    return _result(True, f"Aimed {obj.name} at {target.name}.")
+
+
+def set_render_settings(engine, resolution_x, resolution_y, resolution_percentage, fps):
+    scene = bpy.context.scene
+    try:
+        scene.render.engine = engine
+    except (TypeError, ValueError) as exc:
+        return _result(False, f"Unsupported render engine '{engine}': {exc}")
+
+    scene.render.resolution_x = int(resolution_x)
+    scene.render.resolution_y = int(resolution_y)
+    scene.render.resolution_percentage = int(resolution_percentage)
+    scene.render.fps = float(fps)
+    return _result(
+        True,
+        "Updated render settings.",
+        engine=scene.render.engine,
+        resolution=[scene.render.resolution_x, scene.render.resolution_y],
+        resolution_percentage=scene.render.resolution_percentage,
+        fps=scene.render.fps,
+    )
+
 
 TOOL_HANDLERS = {
     "inspect_scene": inspect_scene,
@@ -558,6 +877,26 @@ TOOL_HANDLERS = {
     "create_camera": create_camera,
     "set_world_background": set_world_background,
     "create_text": create_text,
+    "move_object_delta": move_object_delta,
+    "rotate_object_delta": rotate_object_delta,
+    "set_object_dimensions": set_object_dimensions,
+    "apply_object_scale": apply_object_scale,
+    "batch_transform_objects": batch_transform_objects,
+    "arrange_objects_linear": arrange_objects_linear,
+    "align_objects": align_objects,
+    "distribute_objects": distribute_objects,
+    "create_empty": create_empty,
+    "create_bezier_curve": create_bezier_curve,
+    "add_array_modifier": add_array_modifier,
+    "add_mirror_modifier": add_mirror_modifier,
+    "add_solidify_modifier": add_solidify_modifier,
+    "add_boolean_modifier": add_boolean_modifier,
+    "add_shrinkwrap_modifier": add_shrinkwrap_modifier,
+    "add_simple_deform_modifier": add_simple_deform_modifier,
+    "add_decimate_modifier": add_decimate_modifier,
+    "add_weighted_normal_modifier": add_weighted_normal_modifier,
+    "aim_object_at": aim_object_at,
+    "set_render_settings": set_render_settings,
 }
 
 
