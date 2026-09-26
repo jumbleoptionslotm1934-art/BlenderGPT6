@@ -124,14 +124,14 @@ The tool layer currently contains **70 model-facing Blender tools**.
 
 ## Installation
 
-1. Download the repository and package it as a Blender extension.
-2. Install it from Blender Preferences > Get Extensions > Install from Disk.
-3. Enable GPT Blend.
-4. Open the 3D View sidebar (N) and select GPT Blend.
-5. Configure your OpenAI API key in Preferences.
+1. Download the **gptblend-0.7.0.zip** extension package from the latest successful GitHub Actions build.
+2. In Blender 5.2+, open **Edit → Preferences → Get Extensions**.
+3. Choose **Install from Disk** and select the `.zip` package.
+4. Enable **GPT Blend**.
+5. Open the 3D View sidebar (**N**) and select **GPT Blend**.
+6. Configure your OpenAI API key in Preferences.
 
-Never commit your API key.
-
+The repository also contains the source code and runtime tests for development.
 ## Example prompts
 
 - "Build a simple wooden table with four legs and a beveled top."
