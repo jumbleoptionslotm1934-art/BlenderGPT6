@@ -4,6 +4,14 @@ from ..preferences import get_preferences
 from ..core.client import send_message, GPTBlendError
 from ..context.scene import get_scene_context
 
+class GPTBlendConfigureOperator(Operator):
+    bl_idname = "gptblend.configure"
+    bl_label = "Configure API Key"
+
+    def execute(self, context):
+        bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
+        return {"FINISHED"}
+
 class GPTBlendSendOperator(Operator):
     bl_idname = "gptblend.send"
     bl_label = "Send to GPT"
@@ -34,7 +42,7 @@ class GPTBlendClearOperator(Operator):
         context.scene.gptblend_props.prompt = ""
         return {"FINISHED"}
 
-classes = (GPTBlendSendOperator, GPTBlendClearOperator)
+classes = (GPTBlendConfigureOperator, GPTBlendSendOperator, GPTBlendClearOperator)
 
 def register():
     for cls in classes:
