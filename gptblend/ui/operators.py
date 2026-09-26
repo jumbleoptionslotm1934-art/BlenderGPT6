@@ -213,6 +213,12 @@ class GPTBlendClearOperator(Operator):
     bl_label = "Clear"
 
     def execute(self, context):
+        global _ACTIVE_JOB
+
+        if _ACTIVE_JOB is not None:
+            _ACTIVE_JOB.cancel()
+            _ACTIVE_JOB = None
+
         context.scene.gptblend_props.response = ""
         context.scene.gptblend_props.prompt = ""
         context.scene.gptblend_props.status = "Ready"
