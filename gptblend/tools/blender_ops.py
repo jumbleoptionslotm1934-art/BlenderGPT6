@@ -128,6 +128,56 @@ def _remove_action_fcurves(action, predicate):
                             pass
 
 
+def _ensure_animation_action(obj, clear_existing, action_name):
+    anim_data = obj.animation_data_create()
+    action = anim_data.action
+
+    if clear_existing or action is None:
+        action = bpy.data.actions.new(action_name)
+        anim_data.action = action
+
+    return action
+
+
+def _ensure_animation_fcurve(action, obj, data_path, index, group_name):
+    ensure = getattr(action, "fcurve_ensure_for_datablock", None)
+    if ensure is not None:
+        return ensure(
+            obj,
+            data_path,
+            index=index,
+            group_name=group_name,
+        )
+
+    # Compatibility fallback for Blender versions exposing the legacy API.
+    legacy = getattr(action, "fcurves", None)
+    if legacy is None:
+        raise RuntimeError("This Blender build does not expose a supported F-Curve creation API.")
+    fcurve = legacy.find(data_path, index=index)
+    if fcurve is None:
+        fcurve = legacy.new(data_path, index=index, action_group=group_name)
+    return fcurve
+
+
+def _write_animation_fcurve(fcurve, frames, values, interpolations=None, clear=False):
+    if clear:
+        fcurve.keyframe_points.clear()
+
+    for frame, value in zip(frames, values):
+        key = fcurve.keyframe_points.insert(
+            float(frame),
+            float(value),
+            options={"REPLACE"},
+        )
+        if key is not None and interpolations:
+            key.interpolation = interpolations[frame]
+
+    fcurve.keyframe_points.sort()
+    fcurve.keyframe_points.deduplicate()
+    fcurve.keyframe_points.handles_recalc()
+    fcurve.update()
+
+
 def _scene_collection_names(scene):
     names = [scene.collection.name]
     stack = list(scene.collection.children)
@@ -1547,9 +1597,6 @@ def animate_object_transform(object_name, keyframes, clear_existing):
     }
 
     try:
-        if clear_existing:
-            obj.animation_data_clear()
-
         normalized = []
         for keyframe in keyframes:
             frame = int(keyframe["frame"])
@@ -1560,35 +1607,72 @@ def animate_object_transform(object_name, keyframes, clear_existing):
             if interpolation not in interpolation_allowed:
                 return _result(False, f"Unsupported interpolation '{interpolation}'.")
 
-            location = [float(v) for v in keyframe["location"]]
-            rotation = [math.radians(float(v)) for v in keyframe["rotation_degrees"]]
-            scale = [float(v) for v in keyframe["scale"]]
-            normalized.append((frame, location, rotation, scale, interpolation))
+            normalized.append(
+                (
+                    frame,
+                    [float(v) for v in keyframe["location"]],
+                    [math.radians(float(v)) for v in keyframe["rotation_degrees"]],
+                    [float(v) for v in keyframe["scale"]],
+                    interpolation,
+                )
+            )
 
         normalized.sort(key=lambda item: item[0])
+        frames = [item[0] for item in normalized]
 
-        if len(normalized) > 1 and len({item[0] for item in normalized}) != len(normalized):
+        if len(frames) > 1 and len(set(frames)) != len(frames):
             return _result(False, "Keyframes must use distinct frame numbers.")
 
-        for frame, location, rotation, scale, interpolation in normalized:
-            scene.frame_set(frame)
-            obj.location = location
-            obj.rotation_euler = rotation
-            obj.scale = scale
+        action = _ensure_animation_action(
+            obj,
+            clear_existing,
+            f"GPT Blend {obj.name} Animation",
+        )
 
-            obj.keyframe_insert(data_path="location", frame=frame, group="GPT Blend Transform")
-            obj.keyframe_insert(data_path="rotation_euler", frame=frame, group="GPT Blend Transform")
-            obj.keyframe_insert(data_path="scale", frame=frame, group="GPT Blend Transform")
+        interpolations = {item[0]: item[4] for item in normalized}
+        for data_path, values in (
+            ("location", [item[1][0] for item in normalized]),
+            ("rotation_euler_x", []),
+        ):
+            pass
 
-        action = obj.animation_data.action if obj.animation_data else None
-        if action:
-            for fcurve in _action_fcurves(action):
-                for key in fcurve.keyframe_points:
-                    key_frame = int(round(key.co.x))
-                    for authored_frame, _, _, _, interpolation in normalized:
-                        if key_frame == authored_frame:
-                            key.interpolation = interpolation
-                            break
+        location_curves = [
+            [item[1][axis] for item in normalized]
+            for axis in range(3)
+        ]
+        rotation_curves = [
+            [item[2][axis] for item in normalized]
+            for axis in range(3)
+        ]
+        scale_curves = [
+            [item[3][axis] for item in normalized]
+            for axis in range(3)
+        ]
+
+        for axis in range(3):
+            location_curve = _ensure_animation_fcurve(
+                action, obj, "location", axis, "GPT Blend Transform"
+            )
+            _write_animation_fcurve(
+                location_curve, frames, location_curves[axis], interpolations,
+                clear=clear_existing
+            )
+
+            rotation_curve = _ensure_animation_fcurve(
+                action, obj, "rotation_euler", axis, "GPT Blend Transform"
+            )
+            _write_animation_fcurve(
+                rotation_curve, frames, rotation_curves[axis], interpolations,
+                clear=clear_existing
+            )
+
+            scale_curve = _ensure_animation_fcurve(
+                action, obj, "scale", axis, "GPT Blend Transform"
+            )
+            _write_animation_fcurve(
+                scale_curve, frames, scale_curves[axis], interpolations,
+                clear=clear_existing
+            )
 
         scene.frame_set(max(scene.frame_start, min(original_frame, scene.frame_end)))
 
@@ -1596,17 +1680,22 @@ def animate_object_transform(object_name, keyframes, clear_existing):
             True,
             f"Animated {obj.name} with {len(normalized)} transform keyframe(s).",
             object_name=obj.name,
-            keyframes=[frame for frame, _, _, _, _ in normalized],
-            start_frame=normalized[0][0],
-            end_frame=normalized[-1][0],
-            interpolation_summary=sorted({item[4] for item in normalized}),
+            action=action.name,
+            keyframes=frames,
+            start_frame=frames[0],
+            end_frame=frames[-1],
+            interpolation_summary=sorted(set(interpolations.values())),
         )
     except Exception as exc:
         try:
             scene.frame_set(max(scene.frame_start, min(original_frame, scene.frame_end)))
         except Exception:
             pass
-        return _result(False, f"Could not animate '{obj.name}': {exc}")
+        return _result(
+            False,
+            f"Could not animate '{obj.name}': {type(exc).__name__}: {exc}",
+            error_type=type(exc).__name__,
+        )
 
 
 def animate_object_visibility(object_name, keyframes, clear_existing):
@@ -1638,44 +1727,64 @@ def animate_object_visibility(object_name, keyframes, clear_existing):
             )
 
         normalized.sort(key=lambda item: item[0])
-        if len(normalized) > 1 and len({item[0] for item in normalized}) != len(normalized):
+        frames = [item[0] for item in normalized]
+        if len(frames) > 1 and len(set(frames)) != len(frames):
             return _result(False, "Visibility keyframes must use distinct frame numbers.")
 
-        action = obj.animation_data.action if obj.animation_data else None
-        if clear_existing and action:
-            _remove_action_fcurves(
-                action,
-                lambda fcurve: fcurve.data_path in {"hide_viewport", "hide_render"},
-            )
+        action = _ensure_animation_action(
+            obj,
+            clear_existing,
+            f"GPT Blend {obj.name} Visibility",
+        )
 
-        for frame, hide_viewport, hide_render in normalized:
-            scene.frame_set(frame)
-            obj.hide_viewport = hide_viewport
-            obj.hide_render = hide_render
-            obj.keyframe_insert(data_path="hide_viewport", frame=frame, group="GPT Blend Visibility")
-            obj.keyframe_insert(data_path="hide_render", frame=frame, group="GPT Blend Visibility")
+        viewport_curve = _ensure_animation_fcurve(
+            action, obj, "hide_viewport", -1, "GPT Blend Visibility"
+        )
+        render_curve = _ensure_animation_fcurve(
+            action, obj, "hide_render", -1, "GPT Blend Visibility"
+        )
 
-        action = obj.animation_data.action if obj.animation_data else None
-        if action:
-            for fcurve in _action_fcurves(action):
-                if fcurve.data_path not in {"hide_viewport", "hide_render"}:
-                    continue
-                for key in fcurve.keyframe_points:
-                    key.interpolation = "CONSTANT"
+        viewport_values = [1.0 if item[1] else 0.0 for item in normalized]
+        render_values = [1.0 if item[2] else 0.0 for item in normalized]
+        hold_interpolation = {frame: "CONSTANT" for frame in frames}
 
+        _write_animation_fcurve(
+            viewport_curve,
+            frames,
+            viewport_values,
+            hold_interpolation,
+            clear=clear_existing,
+        )
+        _write_animation_fcurve(
+            render_curve,
+            frames,
+            render_values,
+            hold_interpolation,
+            clear=clear_existing,
+        )
+
+        # Set the properties to the first keyed state so the current state is deterministic.
+        obj.hide_viewport = normalized[0][1]
+        obj.hide_render = normalized[0][2]
         scene.frame_set(max(scene.frame_start, min(original_frame, scene.frame_end)))
+
         return _result(
             True,
             f"Animated viewport/render visibility for {obj.name} with {len(normalized)} keyframe(s).",
             object_name=obj.name,
-            keyframes=[frame for frame, _, _ in normalized],
+            action=action.name,
+            keyframes=frames,
         )
     except Exception as exc:
         try:
             scene.frame_set(max(scene.frame_start, min(original_frame, scene.frame_end)))
         except Exception:
             pass
-        return _result(False, f"Could not animate visibility on '{obj.name}': {exc}")
+        return _result(
+            False,
+            f"Could not animate visibility on '{obj.name}': {type(exc).__name__}: {exc}",
+            error_type=type(exc).__name__,
+        )
 
 
 def clear_object_animation(object_name):
