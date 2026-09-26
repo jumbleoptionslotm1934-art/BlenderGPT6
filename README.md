@@ -2,7 +2,7 @@
 
 AI-powered Blender add-on for connecting Blender to OpenAI GPT models.
 
-## GPT Blend 0.4.0
+## GPT Blend 0.5.0
 
 GPT Blend uses OpenAI function calling to let the selected GPT model operate Blender through a structured tool layer instead of returning only Python code.
 
@@ -15,6 +15,10 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Persistent multi-turn sessions using the Responses API response chain.
 - Model-specific sessions: changing models starts a new session automatically.
 - Manual **New Chat** control.
+- Persistent in-panel chat history.
+- Live agent/tool activity log with tool-call count.
+- Clean cancellation and session reset.
+- Optional active viewport screenshot sent with each new prompt for visual reasoning.
 - Blender undo checkpoints before GPT-driven edits.
 
 ### Scene and object control
@@ -89,7 +93,7 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Configure resolution percentage.
 - Configure frame rate.
 
-The tool layer currently contains **46 model-facing Blender tools**.
+The tool layer currently contains **48 model-facing Blender tools**.
 
 ## Installation
 
@@ -119,6 +123,8 @@ Never commit your API key.
 GPT Blend uses structured Blender operations rather than unrestricted generated Python. The model is instructed to avoid unnecessary edits and never delete objects unless the user explicitly requests deletion.
 
 Mutating GPT operations create Blender undo checkpoints when Blender permits them.
+
+GPT Blend can include an active 3D Viewport screenshot as multimodal input when enabled in Preferences.
 
 Network/model generation now runs off Blender's main thread. Blender tool calls that modify Blender data are marshalled back to Blender's main thread, keeping the UI responsive while GPT is thinking. A heavy Blender operation itself can still temporarily occupy the main thread, but waiting on the OpenAI API no longer freezes the interface.
 
