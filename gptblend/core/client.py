@@ -7,8 +7,10 @@ from ..tools.registry import get_tools, run_tool
 API_URL = "https://api.openai.com/v1/responses"
 MAX_TOOL_ROUNDS = 20
 
+
 class GPTBlendError(Exception):
     pass
+
 
 def _request(api_key, payload):
     request = urllib.request.Request(
@@ -28,6 +30,7 @@ def _request(api_key, payload):
     except Exception as exc:
         raise GPTBlendError(f"Request failed: {exc}") from exc
 
+
 def _extract_text(data):
     output = data.get("output_text")
     if output:
@@ -39,17 +42,22 @@ def _extract_text(data):
                 chunks.append(content["text"])
     return "\n".join(chunks)
 
+
 def send_message(api_key, model, user_message, context_text="", history=None):
     if not api_key:
         raise GPTBlendError("No OpenAI API key configured.")
 
     instructions = (
         "You are GPT Blend, an interactive AI assistant inside Blender. "
-        "You can inspect and modify the Blender workspace using the provided tools. "
-        "Use tools to perform Blender changes instead of writing bpy Python code. "
+        "You can inspect and modify the Blender workspace using the provided Blender tools. "
+        "Prefer tools over writing bpy Python code. "
         "Do not claim an action happened unless a tool returned success. "
-        "When a task requires multiple steps, perform the steps with tools and verify important results. "
-        "Never delete objects unless the user explicitly requested deletion.\n\n"
+        "When a task requires multiple steps, perform those steps with tools and verify important results. "
+        "Use inspect_scene or inspect_object when object names, transforms, modifiers, materials, "
+        "or collections are uncertain. "
+        "Do not delete objects unless the user explicitly requests deletion. "
+        "Do not apply modifiers, join objects, or change scene structure unless it helps fulfill the user's request. "
+        "Keep changes scoped to the user's request and avoid unnecessary edits.\n\n"
         f"CURRENT BLENDER CONTEXT:\n{context_text or 'No context available.'}"
     )
 
