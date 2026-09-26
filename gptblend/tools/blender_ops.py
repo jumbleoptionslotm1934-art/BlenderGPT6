@@ -905,6 +905,17 @@ def set_procedural_texture(
     if not hasattr(obj.data, "materials"):
         return _result(False, f"Object '{object_name}' does not support materials.")
 
+    texture_type = texture_type.upper()
+    texture_nodes = {
+        "NOISE": "ShaderNodeTexNoise",
+        "VORONOI": "ShaderNodeTexVoronoi",
+        "WAVE": "ShaderNodeTexWave",
+        "BRICK": "ShaderNodeTexBrick",
+    }
+    node_type = texture_nodes.get(texture_type)
+    if not node_type:
+        return _result(False, f"Unsupported procedural texture type: {texture_type}")
+
     material = bpy.data.materials.get(material_name) or bpy.data.materials.new(material_name)
     material.use_nodes = True
     nodes = material.node_tree.nodes
@@ -922,17 +933,6 @@ def set_procedural_texture(
     bump.location = (120, -180)
     ramp.location = (-120, 120)
     texcoord.location = (-620, 0)
-
-    texture_type = texture_type.upper()
-    texture_nodes = {
-        "NOISE": "ShaderNodeTexNoise",
-        "VORONOI": "ShaderNodeTexVoronoi",
-        "WAVE": "ShaderNodeTexWave",
-        "BRICK": "ShaderNodeTexBrick",
-    }
-    node_type = texture_nodes.get(texture_type)
-    if not node_type:
-        return _result(False, f"Unsupported procedural texture type: {texture_type}")
 
     texture = nodes.new(node_type)
     texture.location = (-360, 100)
