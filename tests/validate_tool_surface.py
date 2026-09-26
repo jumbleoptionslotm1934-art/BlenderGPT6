@@ -33,8 +33,14 @@ def main():
     if len(schema_names) != len(set(schema_names)):
         raise AssertionError("Duplicate tool schema names found.")
 
-    handlers_value = _literal(_assignment(ops_tree, "TOOL_HANDLERS"))
-    handler_names = list(handlers_value)
+    handlers_node = _assignment(ops_tree, "TOOL_HANDLERS")
+    if not isinstance(handlers_node, ast.Dict):
+        raise AssertionError("TOOL_HANDLERS must be a dict literal.")
+    handler_names = [
+        ast.literal_eval(key)
+        for key in handlers_node.keys
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    ]
 
     missing = sorted(set(schema_names) - set(handler_names))
     extra = sorted(set(handler_names) - set(schema_names))
