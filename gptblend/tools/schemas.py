@@ -308,6 +308,25 @@ TOOLS = [
         "strict": True,
     },
     {
+        "type": "function", "name": "set_light_settings",
+        "description": "Configure an existing light's energy, color, shadow size, and type-specific spot/sun settings.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "light_name": {"type": "string"},
+                "energy": {"type": "number", "minimum": 0},
+                "color": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "shadow_size": {"type": "number", "minimum": 0.0001, "maximum": 10000},
+                "spot_size_degrees": {"type": "number", "minimum": 0.1, "maximum": 179.9},
+                "spot_blend": {"type": "number", "minimum": 0, "maximum": 1},
+                "sun_angle_degrees": {"type": "number", "minimum": 0, "maximum": 180}
+            },
+            "required": ["light_name", "energy", "color", "shadow_size", "spot_size_degrees", "spot_blend", "sun_angle_degrees"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
         "type": "function", "name": "create_camera",
         "description": "Create a camera with a location, rotation, and lens, and optionally make it the active scene camera.",
         "parameters": {
@@ -828,6 +847,34 @@ TOOLS = [
         "strict": True,
     },
     {
+        "type": "function", "name": "animate_object_visibility",
+        "description": "Create or replace viewport/render visibility keyframes for an object. Visibility keyframes use constant interpolation so states hold until the next keyframe.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "keyframes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "frame": {"type": "integer", "minimum": 1, "maximum": 100000},
+                            "hide_viewport": {"type": "boolean"},
+                            "hide_render": {"type": "boolean"}
+                        },
+                        "required": ["frame", "hide_viewport", "hide_render"],
+                        "additionalProperties": False
+                    }
+                },
+                "clear_existing": {"type": "boolean"}
+            },
+            "required": ["object_name", "keyframes", "clear_existing"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
         "type": "function", "name": "clear_object_animation",
         "description": "Remove all animation data and the action from an object.",
         "parameters": {
@@ -855,6 +902,26 @@ TOOLS = [
         "strict": True,
     }
 ,
+    {
+        "type": "function", "name": "set_camera_settings",
+        "description": "Configure a camera's projection type, lens/orthographic scale, clipping range, and sensor shift.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "camera_name": {"type": "string"},
+                "camera_type": {"type": "string", "enum": ["PERSP", "ORTHO", "PANO"]},
+                "lens": {"type": "number", "minimum": 1, "maximum": 500},
+                "ortho_scale": {"type": "number", "minimum": 0.001, "maximum": 100000},
+                "clip_start": {"type": "number", "minimum": 0.0001, "maximum": 100000},
+                "clip_end": {"type": "number", "minimum": 0.001, "maximum": 1000000},
+                "shift_x": {"type": "number", "minimum": -10, "maximum": 10},
+                "shift_y": {"type": "number", "minimum": -10, "maximum": 10}
+            },
+            "required": ["camera_name", "camera_type", "lens", "ortho_scale", "clip_start", "clip_end", "shift_x", "shift_y"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
     {
         "type": "function", "name": "set_camera_depth_of_field",
         "description": "Configure a camera's depth of field, optional focus object, focus distance, and f-stop.",
