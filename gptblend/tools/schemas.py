@@ -355,8 +355,7 @@ TOOLS = [
         },
         "strict": True,
     },
-,
-    
+
     # 20 advanced workflow and modeling capabilities.
     {
         "type": "function", "name": "move_object_delta",
