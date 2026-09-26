@@ -1,6 +1,7 @@
 import bpy
 import math
 
+
 ALLOWED_PRIMITIVES = {
     "CUBE": bpy.ops.mesh.primitive_cube_add,
     "UV_SPHERE": bpy.ops.mesh.primitive_uv_sphere_add,
@@ -10,28 +11,66 @@ ALLOWED_PRIMITIVES = {
     "PLANE": bpy.ops.mesh.primitive_plane_add,
 }
 
+
 def _result(ok, message, **extra):
     data = {"ok": ok, "message": message}
     data.update(extra)
     return data
 
+
+def _get_object(name):
+    return bpy.data.objects.get(name)
+
+
+def _get_collection(name, scene=None):
+    collection = bpy.data.collections.get(name)
+    if collection is None:
+        return None
+    if scene is None:
+        return collection
+    if collection == scene.collection:
+        return collection
+    return collection
+
+
+def _set_active_only(obj):
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+
+
 def inspect_scene():
     scene = bpy.context.scene
     objects = [{
-        "name": o.name, "type": o.type,
+        "name": o.name,
+        "type": o.type,
         "location": [round(v, 4) for v in o.location],
         "rotation_degrees": [round(math.degrees(v), 2) for v in o.rotation_euler],
         "scale": [round(v, 4) for v in o.scale],
         "selected": o.select_get(),
+        "hidden": o.hide_get(),
+        "hidden_from_render": o.hide_render,
+        "parent": o.parent.name if o.parent else None,
+        "collections": [c.name for c in o.users_collection],
     } for o in scene.objects]
-    return _result(True, "Scene inspected.", scene=scene.name, mode=bpy.context.mode,
-                   active_object=bpy.context.active_object.name if bpy.context.active_object else None,
-                   objects=objects)
+    return _result(
+        True,
+        "Scene inspected.",
+        scene=scene.name,
+        mode=bpy.context.mode,
+        active_object=bpy.context.active_object.name if bpy.context.active_object else None,
+        camera=scene.camera.name if scene.camera else None,
+        collections=[c.name for c in bpy.data.collections],
+        objects=objects,
+    )
+
 
 def create_object(object_type, name, location, scale):
     object_type = object_type.upper()
     if object_type not in ALLOWED_PRIMITIVES:
         return _result(False, f"Unsupported primitive: {object_type}")
+    if bpy.data.objects.get(name):
+        return _result(False, f"An object named '{name}' already exists.")
     bpy.ops.object.select_all(action="DESELECT")
     ALLOWED_PRIMITIVES[object_type](location=location)
     obj = bpy.context.object
@@ -42,8 +81,9 @@ def create_object(object_type, name, location, scale):
     bpy.context.view_layer.objects.active = obj
     return _result(True, f"Created {obj.name}.", name=obj.name, type=obj.type)
 
+
 def transform_object(name, location, rotation_degrees, scale):
-    obj = bpy.data.objects.get(name)
+    obj = _get_object(name)
     if obj is None:
         return _result(False, f"Object '{name}' was not found.")
     obj.location = location
@@ -53,35 +93,440 @@ def transform_object(name, location, rotation_degrees, scale):
     obj.select_set(True)
     return _result(True, f"Transformed {obj.name}.", name=obj.name)
 
+
 def rename_object(current_name, new_name):
-    obj = bpy.data.objects.get(current_name)
+    obj = _get_object(current_name)
     if obj is None:
         return _result(False, f"Object '{current_name}' was not found.")
+    if current_name != new_name and bpy.data.objects.get(new_name):
+        return _result(False, f"An object named '{new_name}' already exists.")
     old_name = obj.name
     obj.name = new_name
     return _result(True, f"Renamed {old_name} to {obj.name}.", name=obj.name)
 
+
 def delete_object(name):
-    obj = bpy.data.objects.get(name)
+    obj = _get_object(name)
     if obj is None:
         return _result(False, f"Object '{name}' was not found.")
     bpy.data.objects.remove(obj, do_unlink=True)
     return _result(True, f"Deleted {name}.")
 
+
 def duplicate_object(name, new_name, location):
-    source = bpy.data.objects.get(name)
+    source = _get_object(name)
     if source is None:
         return _result(False, f"Object '{name}' was not found.")
+    if bpy.data.objects.get(new_name):
+        return _result(False, f"An object named '{new_name}' already exists.")
     duplicate = source.copy()
     if source.data:
         duplicate.data = source.data.copy()
     duplicate.name = new_name
     duplicate.location = location
-    bpy.context.collection.objects.link(duplicate)
-    bpy.ops.object.select_all(action="DESELECT")
-    duplicate.select_set(True)
-    bpy.context.view_layer.objects.active = duplicate
+    target_collection = source.users_collection[0] if source.users_collection else bpy.context.collection
+    target_collection.objects.link(duplicate)
+    _set_active_only(duplicate)
     return _result(True, f"Duplicated {name} as {duplicate.name}.", name=duplicate.name)
+
+
+# ---------------------------------------------------------------------------
+# Additional capabilities
+# ---------------------------------------------------------------------------
+
+def inspect_object(name):
+    obj = _get_object(name)
+    if obj is None:
+        return _result(False, f"Object '{name}' was not found.")
+
+    materials = []
+    if hasattr(obj.data, "materials"):
+        materials = [m.name if m else None for m in obj.data.materials]
+
+    modifiers = [{
+        "name": modifier.name,
+        "type": modifier.type,
+        "show_viewport": modifier.show_viewport,
+        "show_render": modifier.show_render,
+    } for modifier in obj.modifiers]
+
+    return _result(
+        True,
+        f"Inspected {obj.name}.",
+        object={
+            "name": obj.name,
+            "type": obj.type,
+            "location": [round(v, 4) for v in obj.location],
+            "rotation_degrees": [round(math.degrees(v), 2) for v in obj.rotation_euler],
+            "scale": [round(v, 4) for v in obj.scale],
+            "dimensions": [round(v, 4) for v in obj.dimensions],
+            "selected": obj.select_get(),
+            "hidden": obj.hide_get(),
+            "hidden_from_render": obj.hide_render,
+            "parent": obj.parent.name if obj.parent else None,
+            "collections": [c.name for c in obj.users_collection],
+            "materials": materials,
+            "modifiers": modifiers,
+        },
+    )
+
+
+def select_objects(names, clear_existing):
+    if clear_existing:
+        bpy.ops.object.select_all(action="DESELECT")
+
+    missing = []
+    selected = []
+    for name in names:
+        obj = _get_object(name)
+        if obj is None:
+            missing.append(name)
+            continue
+        obj.select_set(True)
+        selected.append(obj.name)
+
+    if selected:
+        bpy.context.view_layer.objects.active = _get_object(selected[-1])
+
+    if missing:
+        return _result(
+            False,
+            f"Some objects were not found: {', '.join(missing)}.",
+            selected=selected,
+            missing=missing,
+        )
+
+    return _result(True, f"Selected {len(selected)} object(s).", selected=selected)
+
+
+def set_material(object_name, material_name, base_color, metallic, roughness):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if not hasattr(obj.data, "materials"):
+        return _result(False, f"Object '{object_name}' does not support materials.")
+
+    color = [min(1.0, max(0.0, float(v))) for v in base_color]
+    material = bpy.data.materials.get(material_name)
+    if material is None:
+        material = bpy.data.materials.new(material_name)
+
+    material.use_nodes = True
+    material.diffuse_color = color
+
+    principled = material.node_tree.nodes.get("Principled BSDF")
+    if principled:
+        base_input = principled.inputs.get("Base Color")
+        if base_input:
+            base_input.default_value = color
+        metallic_input = principled.inputs.get("Metallic")
+        if metallic_input:
+            metallic_input.default_value = float(metallic)
+        roughness_input = principled.inputs.get("Roughness")
+        if roughness_input:
+            roughness_input.default_value = float(roughness)
+
+    if material not in obj.data.materials:
+        obj.data.materials.append(material)
+    else:
+        material_index = list(obj.data.materials).index(material)
+        obj.active_material_index = material_index
+
+    return _result(
+        True,
+        f"Assigned material '{material.name}' to {obj.name}.",
+        object_name=obj.name,
+        material_name=material.name,
+    )
+
+
+def set_object_color(name, color):
+    obj = _get_object(name)
+    if obj is None:
+        return _result(False, f"Object '{name}' was not found.")
+    obj.color = [min(1.0, max(0.0, float(v))) for v in color]
+    return _result(True, f"Set viewport color on {obj.name}.", color=list(obj.color))
+
+
+def add_bevel_modifier(object_name, modifier_name, width, segments, limit_method):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if obj.type != "MESH":
+        return _result(False, f"Bevel modifiers are only supported for mesh objects, not {obj.type}.")
+    if obj.modifiers.get(modifier_name):
+        return _result(False, f"Modifier '{modifier_name}' already exists on {obj.name}.")
+
+    modifier = obj.modifiers.new(modifier_name, "BEVEL")
+    modifier.width = float(width)
+    modifier.segments = int(segments)
+    modifier.limit_method = limit_method
+    return _result(True, f"Added Bevel modifier '{modifier.name}' to {obj.name}.")
+
+
+def add_subdivision_modifier(object_name, modifier_name, levels, render_levels):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if obj.type != "MESH":
+        return _result(False, f"Subdivision is only supported for mesh objects, not {obj.type}.")
+    if obj.modifiers.get(modifier_name):
+        return _result(False, f"Modifier '{modifier_name}' already exists on {obj.name}.")
+
+    modifier = obj.modifiers.new(modifier_name, "SUBSURF")
+    modifier.subdivision_type = "CATMULL_CLARK"
+    modifier.levels = int(levels)
+    modifier.render_levels = int(render_levels)
+    return _result(True, f"Added Subdivision modifier '{modifier.name}' to {obj.name}.")
+
+
+def remove_modifier(object_name, modifier_name):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    modifier = obj.modifiers.get(modifier_name)
+    if modifier is None:
+        return _result(False, f"Modifier '{modifier_name}' was not found on {obj.name}.")
+    obj.modifiers.remove(modifier)
+    return _result(True, f"Removed modifier '{modifier_name}' from {obj.name}.")
+
+
+def apply_modifier(object_name, modifier_name):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if bpy.context.mode != "OBJECT":
+        return _result(False, "Applying modifiers requires Blender Object Mode.")
+    if obj.modifiers.get(modifier_name) is None:
+        return _result(False, f"Modifier '{modifier_name}' was not found on {obj.name}.")
+
+    _set_active_only(obj)
+    try:
+        bpy.ops.object.modifier_apply(modifier=modifier_name)
+    except RuntimeError as exc:
+        return _result(False, f"Could not apply modifier '{modifier_name}': {exc}")
+
+    return _result(True, f"Applied modifier '{modifier_name}' to {obj.name}.")
+
+
+def shade_object(object_name, smooth):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if obj.type != "MESH":
+        return _result(False, f"Shading is only supported for mesh objects, not {obj.type}.")
+
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = bool(smooth)
+
+    mode = "smooth" if smooth else "flat"
+    return _result(True, f"Set {obj.name} to {mode} shading.")
+
+
+def join_objects(names, active_name):
+    if bpy.context.mode != "OBJECT":
+        return _result(False, "Joining objects requires Blender Object Mode.")
+    if active_name not in names:
+        return _result(False, f"Active object '{active_name}' must be included in names.")
+
+    objects = []
+    for name in names:
+        obj = _get_object(name)
+        if obj is None:
+            return _result(False, f"Object '{name}' was not found.")
+        objects.append(obj)
+
+    object_type = objects[0].type
+    if any(obj.type != object_type for obj in objects):
+        return _result(False, "All objects being joined must have the same object type.")
+    if object_type not in {"MESH", "CURVE", "SURFACE", "FONT", "META"}:
+        return _result(False, f"Object type '{object_type}' cannot be joined by this tool.")
+
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in objects:
+        obj.select_set(True)
+    active = _get_object(active_name)
+    bpy.context.view_layer.objects.active = active
+
+    try:
+        bpy.ops.object.join()
+    except RuntimeError as exc:
+        return _result(False, f"Join failed: {exc}")
+
+    return _result(True, f"Joined {len(objects)} objects into {active.name}.", name=active.name)
+
+
+def set_origin(object_name, origin_type):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if bpy.context.mode != "OBJECT":
+        return _result(False, "Setting an origin requires Blender Object Mode.")
+
+    _set_active_only(obj)
+    try:
+        bpy.ops.object.origin_set(type=origin_type)
+    except RuntimeError as exc:
+        return _result(False, f"Could not set origin: {exc}")
+
+    return _result(True, f"Set origin of {obj.name} using {origin_type}.")
+
+
+def parent_object(child_name, parent_name):
+    child = _get_object(child_name)
+    parent = _get_object(parent_name)
+    if child is None:
+        return _result(False, f"Child object '{child_name}' was not found.")
+    if parent is None:
+        return _result(False, f"Parent object '{parent_name}' was not found.")
+    if child == parent:
+        return _result(False, "An object cannot parent itself.")
+    if parent in child.children:
+        return _result(False, f"'{parent.name}' is already a child of '{child.name}'.")
+
+    child_world = child.matrix_world.copy()
+    child.parent = parent
+    child.matrix_world = child_world
+    return _result(True, f"Parented {child.name} to {parent.name}.")
+
+
+def hide_object(name, hidden):
+    obj = _get_object(name)
+    if obj is None:
+        return _result(False, f"Object '{name}' was not found.")
+    obj.hide_set(bool(hidden))
+    return _result(True, f"{'Hidden' if hidden else 'Unhidden'} {obj.name} in the viewport.")
+
+
+def set_render_visibility(name, hidden_from_render):
+    obj = _get_object(name)
+    if obj is None:
+        return _result(False, f"Object '{name}' was not found.")
+    obj.hide_render = bool(hidden_from_render)
+    return _result(
+        True,
+        f"{'Disabled' if hidden_from_render else 'Enabled'} {obj.name} for rendering.",
+    )
+
+
+def create_collection(name, parent_collection_name):
+    if bpy.data.collections.get(name):
+        return _result(False, f"A collection named '{name}' already exists.")
+
+    scene = bpy.context.scene
+    if parent_collection_name == "Scene Collection":
+        parent = scene.collection
+    else:
+        parent = _get_collection(parent_collection_name, scene)
+
+    if parent is None:
+        return _result(False, f"Parent collection '{parent_collection_name}' was not found.")
+
+    collection = bpy.data.collections.new(name)
+    parent.children.link(collection)
+    return _result(True, f"Created collection '{collection.name}'.", name=collection.name)
+
+
+def move_object_to_collection(object_name, collection_name):
+    obj = _get_object(object_name)
+    collection = _get_collection(collection_name, bpy.context.scene)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if collection is None:
+        return _result(False, f"Collection '{collection_name}' was not found.")
+
+    for current_collection in list(obj.users_collection):
+        current_collection.objects.unlink(obj)
+    collection.objects.link(obj)
+    return _result(True, f"Moved {obj.name} to collection '{collection.name}'.")
+
+
+def create_light(name, light_type, location, rotation_degrees, energy, color, size):
+    if bpy.data.objects.get(name):
+        return _result(False, f"An object named '{name}' already exists.")
+
+    light_data = bpy.data.lights.new(name=name, type=light_type)
+    light_data.energy = float(energy)
+    light_data.color = [min(1.0, max(0.0, float(v))) for v in color]
+
+    if light_type == "AREA":
+        light_data.shape = "DISK"
+        light_data.size = float(size)
+    elif light_type in {"POINT", "SPOT"}:
+        light_data.shadow_soft_size = float(size)
+
+    light_object = bpy.data.objects.new(name=name, object_data=light_data)
+    bpy.context.collection.objects.link(light_object)
+    light_object.location = location
+    light_object.rotation_euler = [math.radians(v) for v in rotation_degrees]
+    _set_active_only(light_object)
+
+    return _result(
+        True,
+        f"Created {light_type} light '{light_object.name}'.",
+        name=light_object.name,
+    )
+
+
+def create_camera(name, location, rotation_degrees, lens, make_active):
+    if bpy.data.objects.get(name):
+        return _result(False, f"An object named '{name}' already exists.")
+
+    camera_data = bpy.data.cameras.new(name=name)
+    camera_data.lens = float(lens)
+    camera_object = bpy.data.objects.new(name=name, object_data=camera_data)
+    bpy.context.collection.objects.link(camera_object)
+    camera_object.location = location
+    camera_object.rotation_euler = [math.radians(v) for v in rotation_degrees]
+
+    if make_active:
+        bpy.context.scene.camera = camera_object
+
+    _set_active_only(camera_object)
+    return _result(
+        True,
+        f"Created camera '{camera_object.name}'." + (" It is now the active scene camera." if make_active else ""),
+        name=camera_object.name,
+    )
+
+
+def set_world_background(color, strength):
+    scene = bpy.context.scene
+    world = scene.world
+    if world is None:
+        world = bpy.data.worlds.new(f"{scene.name} World")
+        scene.world = world
+
+    world.use_nodes = True
+    background = world.node_tree.nodes.get("Background")
+    if background is None:
+        return _result(False, "The world Background node could not be found.")
+
+    rgb = [min(1.0, max(0.0, float(v))) for v in color]
+    background.inputs["Color"].default_value = [rgb[0], rgb[1], rgb[2], 1.0]
+    background.inputs["Strength"].default_value = float(strength)
+
+    return _result(True, "Updated the world background.", color=rgb, strength=float(strength))
+
+
+def create_text(name, body, location, rotation_degrees, size, extrude):
+    if bpy.data.objects.get(name):
+        return _result(False, f"An object named '{name}' already exists.")
+
+    curve = bpy.data.curves.new(name=name, type="FONT")
+    curve.body = body
+    curve.size = float(size)
+    curve.extrude = float(extrude)
+    curve.align_x = "CENTER"
+
+    text_object = bpy.data.objects.new(name=name, object_data=curve)
+    bpy.context.collection.objects.link(text_object)
+    text_object.location = location
+    text_object.rotation_euler = [math.radians(v) for v in rotation_degrees]
+    _set_active_only(text_object)
+
+    return _result(True, f"Created text object '{text_object.name}'.", name=text_object.name)
+
 
 TOOL_HANDLERS = {
     "inspect_scene": inspect_scene,
@@ -90,7 +535,28 @@ TOOL_HANDLERS = {
     "rename_object": rename_object,
     "delete_object": delete_object,
     "duplicate_object": duplicate_object,
+    "inspect_object": inspect_object,
+    "select_objects": select_objects,
+    "set_material": set_material,
+    "set_object_color": set_object_color,
+    "add_bevel_modifier": add_bevel_modifier,
+    "add_subdivision_modifier": add_subdivision_modifier,
+    "remove_modifier": remove_modifier,
+    "apply_modifier": apply_modifier,
+    "shade_object": shade_object,
+    "join_objects": join_objects,
+    "set_origin": set_origin,
+    "parent_object": parent_object,
+    "hide_object": hide_object,
+    "set_render_visibility": set_render_visibility,
+    "create_collection": create_collection,
+    "move_object_to_collection": move_object_to_collection,
+    "create_light": create_light,
+    "create_camera": create_camera,
+    "set_world_background": set_world_background,
+    "create_text": create_text,
 }
+
 
 def execute_tool(name, arguments):
     handler = TOOL_HANDLERS.get(name)
