@@ -1409,6 +1409,39 @@ def set_animation_interpolation(object_name, interpolation):
         keyframes_changed=changed,
     )
 
+def inspect_animation(object_name):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    action = obj.animation_data.action if obj.animation_data else None
+    if action is None:
+        return _result(True, f"Object '{obj.name}' has no animation action.", animated=False, object_name=obj.name)
+
+    frames = set()
+    fcurves = []
+    for fcurve in action.fcurves:
+        key_frames = [round(point.co.x, 3) for point in fcurve.keyframe_points]
+        frames.update(int(round(frame)) for frame in key_frames)
+        fcurves.append({
+            "data_path": fcurve.data_path,
+            "array_index": fcurve.array_index,
+            "keyframe_count": len(key_frames),
+            "frames": key_frames,
+        })
+
+    return _result(
+        True,
+        f"Inspected animation on {obj.name}.",
+        animated=True,
+        object_name=obj.name,
+        action=action.name,
+        frame_start=min(frames) if frames else None,
+        frame_end=max(frames) if frames else None,
+        keyframe_count=sum(len(curve["frames"]) for curve in fcurves),
+        fcurves=fcurves,
+    )
+
+
 TOOL_HANDLERS = {
     "inspect_scene": inspect_scene,
     "create_object": create_object,
@@ -1417,6 +1450,7 @@ TOOL_HANDLERS = {
     "delete_object": delete_object,
     "duplicate_object": duplicate_object,
     "inspect_object": inspect_object,
+    "inspect_animation": inspect_animation,
     "select_objects": select_objects,
     "set_material": set_material,
     "set_object_color": set_object_color,
@@ -1470,7 +1504,7 @@ TOOL_HANDLERS = {
     "set_animation_interpolation": set_animation_interpolation,
 }
 
-READ_ONLY_TOOLS = {"inspect_scene", "inspect_object"}
+READ_ONLY_TOOLS = {"inspect_scene", "inspect_object", "inspect_animation"}
 
 
 def execute_tool(name, arguments):
