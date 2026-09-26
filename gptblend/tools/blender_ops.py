@@ -1496,18 +1496,17 @@ def set_camera_depth_of_field(camera_name, enabled, focus_object_name, focus_dis
     if camera_object.type != "CAMERA":
         return _result(False, f"'{camera_name}' is not a camera.")
 
-    camera = camera_object.data
-    camera.dof.use_dof = bool(enabled)
-    camera.dof.aperture_fstop = max(0.1, float(fstop))
-    camera.dof.focus_distance = max(0.0, float(focus_distance))
-
+    focus_object = None
     if focus_object_name:
         focus_object = _get_object(focus_object_name)
         if focus_object is None:
             return _result(False, f"Focus object '{focus_object_name}' was not found.")
-        camera.dof.focus_object = focus_object
-    else:
-        camera.dof.focus_object = None
+
+    camera = camera_object.data
+    camera.dof.use_dof = bool(enabled)
+    camera.dof.aperture_fstop = max(0.1, float(fstop))
+    camera.dof.focus_distance = max(0.0, float(focus_distance))
+    camera.dof.focus_object = focus_object
 
     return _result(
         True,
@@ -1643,6 +1642,12 @@ def add_scene_marker(name, frame, camera_name):
     if frame < scene.frame_start or frame > scene.frame_end:
         return _result(False, "Marker frame must be inside the scene animation range.")
 
+    camera = None
+    if camera_name:
+        camera = _get_object(camera_name)
+        if camera is None or camera.type != "CAMERA":
+            return _result(False, f"Camera '{camera_name}' was not found.")
+
     existing = scene.timeline_markers.get(name)
     if existing:
         existing.frame = frame
@@ -1650,13 +1655,7 @@ def add_scene_marker(name, frame, camera_name):
     else:
         marker = scene.timeline_markers.new(name=name, frame=frame)
 
-    if camera_name:
-        camera = _get_object(camera_name)
-        if camera is None or camera.type != "CAMERA":
-            return _result(False, f"Camera '{camera_name}' was not found.")
-        marker.camera = camera
-    else:
-        marker.camera = None
+    marker.camera = camera
 
     return _result(
         True,
