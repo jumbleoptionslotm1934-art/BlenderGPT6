@@ -231,11 +231,11 @@ def set_material(object_name, material_name, base_color, metallic, roughness):
         if roughness_input:
             roughness_input.default_value = float(roughness)
 
-    if material not in obj.data.materials:
+    if len(obj.data.materials) == 0:
         obj.data.materials.append(material)
     else:
-        material_index = list(obj.data.materials).index(material)
-        obj.active_material_index = material_index
+        obj.data.materials[0] = material
+    obj.active_material_index = 0
 
     return _result(
         True,
@@ -1001,12 +1001,11 @@ def set_procedural_texture(
 
     links.new(principled.outputs["BSDF"], output.inputs["Surface"])
 
-    if material not in obj.data.materials:
+    if len(obj.data.materials) == 0:
         obj.data.materials.append(material)
     else:
-        obj.active_material_index = list(obj.data.materials).index(material)
-
-    obj.active_material_index = list(obj.data.materials).index(material)
+        obj.data.materials[0] = material
+    obj.active_material_index = 0
     return _result(
         True,
         f"Applied a visible {texture_type.lower()} procedural texture to {obj.name}.",
