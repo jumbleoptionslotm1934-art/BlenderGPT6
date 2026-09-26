@@ -203,11 +203,18 @@ def register():
 
 
 def unregister():
-    global _ACTIVE_JOB
+    global _ACTIVE_JOB, _TIMER_REGISTERED
 
     if _ACTIVE_JOB is not None:
         _ACTIVE_JOB.cancel()
         _ACTIVE_JOB = None
+
+    if _TIMER_REGISTERED:
+        try:
+            bpy.app.timers.unregister(_poll_active_job)
+        except Exception:
+            pass
+        _TIMER_REGISTERED = False
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
