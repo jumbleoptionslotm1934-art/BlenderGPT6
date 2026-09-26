@@ -17,7 +17,17 @@ class GPTBlendPanel(Panel):
     def draw(self, context):
         layout = self.layout
         props = context.scene.gptblend_props
-        layout.label(text=f"Model: {props.model}")
+        prefs = context.preferences.addons[__package__.split(".")[0]].preferences
+        layout.label(text="GPT Blend", icon="WORLD")
+        if prefs.api_key:
+            row = layout.row()
+            row.label(text="Connected", icon="CHECKMARK")
+        else:
+            box = layout.box()
+            box.alert = True
+            box.label(text="OpenAI API key not configured", icon="ERROR")
+            box.operator("gptblend.configure", icon="PREFERENCES")
+        layout.prop(prefs, "model", text="Model")
         box = layout.box()
         if props.response:
             for line in props.response.splitlines():
