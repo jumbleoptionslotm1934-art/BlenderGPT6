@@ -12,6 +12,20 @@ MAX_IDENTICAL_TOOL_CALLS = 4
 MAX_REQUEST_RETRIES = 3
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
+VERIFY_OBJECT_ARGUMENT = {
+    "create_object": "name",
+    "transform_object": "name",
+    "rename_object": "new_name",
+    "duplicate_object": "new_name",
+    "set_material": "object_name",
+    "set_object_color": "name",
+    "move_object_delta": "name",
+    "rotate_object_delta": "name",
+    "set_object_dimensions": "name",
+    "apply_object_scale": "name",
+    "set_procedural_texture": "object_name",
+}
+
 
 class GPTBlendError(Exception):
     pass
@@ -212,6 +226,20 @@ def send_message(
                             result = tool_executor(call.get("name"), arguments)
                         else:
                             result = run_tool(call.get("name"), arguments)
+
+                        verify_key = VERIFY_OBJECT_ARGUMENT.get(call.get("name"))
+                        if (
+                            result.get("ok")
+                            and verify_key
+                            and arguments.get(verify_key)
+                            and tool_executor is not None
+                        ):
+                            verification = tool_executor(
+                                "inspect_object",
+                                {"name": arguments[verify_key]},
+                            )
+                            if verification.get("ok"):
+                                result["verification"] = verification.get("object")
                     except Exception as exc:
                         result = {"ok": False, "message": f"Tool execution error: {exc}"}
 
