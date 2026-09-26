@@ -869,6 +869,8 @@ def set_render_settings(engine, resolution_x, resolution_y, resolution_percentag
 
 
 
+
+
 TOOL_HANDLERS = {
     "inspect_scene": inspect_scene,
     "create_object": create_object,
