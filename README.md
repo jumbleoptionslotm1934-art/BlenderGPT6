@@ -2,7 +2,7 @@
 
 AI-powered Blender add-on for connecting Blender to OpenAI GPT models.
 
-## GPT Blend 0.6.0
+## GPT Blend 0.7.0
 
 GPT Blend uses OpenAI function calling to let the selected GPT model operate Blender through a structured tool layer instead of returning only Python code.
 
@@ -13,6 +13,9 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Optional repeated-call loop protection.
 - Automatic retries for transient network/API failures.
 - Persistent multi-turn sessions using the Responses API response chain.
+- Retry the last failed/cancelled prompt without retyping it.
+- Copy GPT responses directly to the system clipboard.
+- Show API-reported token usage when available.
 - Model-specific sessions: changing models starts a new session automatically.
 - Manual **New Chat** control.
 - Persistent in-panel chat history.
@@ -87,7 +90,9 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 ### Lighting and cameras
 
 - Create Point, Area, Sun, and Spot lights.
+- Configure existing light energy, color, shadow size, spot settings, and sun angle.
 - Create cameras.
+- Configure existing camera projection, clipping, lens, and sensor shift.
 - Make a camera the active scene camera.
 - Aim an object or camera at another object.
 - Change the world background.
@@ -105,6 +110,7 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Add Copy Transforms constraints.
 - Remove named constraints.
 - Configure render output path, still-image format, and transparent film.
+- Animate viewport/render visibility with hold-style keyframes.
 - Clear existing object animation.
 
 ### Rendering
@@ -114,7 +120,7 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Configure resolution percentage.
 - Configure frame rate.
 
-The tool layer currently contains **67 model-facing Blender tools**.
+The tool layer currently contains **70 model-facing Blender tools**.
 
 ## Installation
 
