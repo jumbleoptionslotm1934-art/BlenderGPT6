@@ -74,6 +74,7 @@ def send_message(
     max_tool_rounds=MAX_TOOL_ROUNDS,
     max_total_tool_calls=MAX_TOTAL_TOOL_CALLS,
     loop_protection=True,
+    allow_destructive_operations=False,
 ):
     if not api_key:
         raise GPTBlendError("No OpenAI API key configured.")
@@ -130,6 +131,10 @@ def send_message(
         tool_outputs = []
         for call in tool_calls:
             tool_call_count += 1
+            if tool_call_count > max_total_tool_calls:
+                raise GPTBlendError(
+                    f"GPT Blend stopped after {max_total_tool_calls} total tool calls."
+                )
 
             try:
                 arguments = json.loads(call.get("arguments", "{}"))
@@ -154,10 +159,23 @@ def send_message(
                         f"{MAX_IDENTICAL_TOOL_CALLS} times."
                     )
 
-                try:
-                    result = run_tool(call.get("name"), arguments)
-                except Exception as exc:
-                    result = {"ok": False, "message": f"Tool execution error: {exc}"}
+                if (
+                    call.get("name") in {"delete_object", "apply_modifier", "join_objects"}
+                    and not allow_destructive_operations
+                ):
+                    result = {
+                        "ok": False,
+                        "confirmation_required": True,
+                        "message": (
+                            f"'{call.get('name')}' is a destructive operation and is disabled "
+                            "until destructive operations are enabled in GPT Blend Preferences."
+                        ),
+                    }
+                else:
+                    try:
+                        result = run_tool(call.get("name"), arguments)
+                    except Exception as exc:
+                        result = {"ok": False, "message": f"Tool execution error: {exc}"}
 
             tool_outputs.append({
                 "type": "function_call_output",
@@ -167,6 +185,7 @@ def send_message(
 
         payload = {
             "model": model,
+            "instructions": instructions,
             "previous_response_id": data.get("id"),
             "input": tool_outputs,
             "tools": get_tools(),
