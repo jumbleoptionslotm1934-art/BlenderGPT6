@@ -107,7 +107,7 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Configure resolution percentage.
 - Configure frame rate.
 
-The tool layer currently contains **54 model-facing Blender tools**.
+The tool layer currently contains **59 model-facing Blender tools**.
 
 ## Installation
 
