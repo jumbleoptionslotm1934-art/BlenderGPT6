@@ -688,4 +688,84 @@ TOOLS = [
         },
         "strict": True,
     },
+,
+    {
+        "type": "function", "name": "select_mesh_elements",
+        "description": "Select exact mesh vertex, edge, or face indices on an object. Indices are based on the mesh data order.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "domain": {"type": "string", "enum": ["VERT", "EDGE", "FACE"]},
+                "indices": {"type": "array", "items": {"type": "integer"}, "minItems": 1},
+                "extend": {"type": "boolean"}
+            },
+            "required": ["object_name", "domain", "indices", "extend"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "set_mesh_selection_mode",
+        "description": "Set Blender mesh selection mode to vertices, edges, or faces.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "mode": {"type": "string", "enum": ["VERT", "EDGE", "FACE"]}
+            },
+            "required": ["mode"], "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "merge_selected_vertices",
+        "description": "Merge currently selected vertices on a mesh within a specified distance.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "distance": {"type": "number", "minimum": 0}
+            },
+            "required": ["object_name", "distance"], "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "dissolve_selected",
+        "description": "Dissolve currently selected faces, edges, or vertices on a mesh.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"}
+            },
+            "required": ["object_name"], "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "extrude_selected_faces",
+        "description": "Extrude currently selected mesh faces by a relative XYZ offset.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "offset": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3}
+            },
+            "required": ["object_name", "offset"], "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "unwrap_uv",
+        "description": "Unwrap a mesh for texture mapping. SMART_PROJECT is robust for general assets; ANGLE_BASED uses angle-based Blender UV unwrapping.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "method": {"type": "string", "enum": ["SMART_PROJECT", "ANGLE_BASED"]}
+            },
+            "required": ["object_name", "method"], "additionalProperties": False
+        },
+        "strict": True,
+    }
 ]
