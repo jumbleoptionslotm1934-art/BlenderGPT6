@@ -24,6 +24,7 @@ VERIFY_OBJECT_ARGUMENT = {
     "set_object_dimensions": "name",
     "apply_object_scale": "name",
     "set_procedural_texture": "object_name",
+    "animate_object_transform": "object_name",
 }
 
 
@@ -239,9 +240,19 @@ def send_message(
                         ):
                             tool_call_count += 1
                             progress("Verifying the Blender change...")
+                            verification_tool = (
+                                "inspect_animation"
+                                if call.get("name") == "animate_object_transform"
+                                else "inspect_object"
+                            )
+                            verification_args = (
+                                {"object_name": arguments[verify_key]}
+                                if verification_tool == "inspect_animation"
+                                else {"name": arguments[verify_key]}
+                            )
                             verification = tool_executor(
-                                "inspect_object",
-                                {"name": arguments[verify_key]},
+                                verification_tool,
+                                verification_args,
                             )
                             if verification.get("ok"):
                                 result["verification"] = verification.get("object")
