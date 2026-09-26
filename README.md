@@ -2,7 +2,7 @@
 
 AI-powered Blender add-on for connecting Blender to OpenAI GPT models.
 
-## GPT Blend 0.5.1
+## GPT Blend 0.5.2
 
 GPT Blend uses OpenAI function calling to let the selected GPT model operate Blender through a structured tool layer instead of returning only Python code.
 
@@ -91,6 +91,13 @@ GPT Blend uses OpenAI function calling to let the selected GPT model operate Ble
 - Make a camera the active scene camera.
 - Aim an object or camera at another object.
 - Change the world background.
+
+### Animation
+
+- Configure FPS and frame range.
+- Create explicit object, camera, and light transform keyframes.
+- Choose interpolation per keyframe or across an existing action.
+- Clear existing object animation.
 
 ### Rendering
 
