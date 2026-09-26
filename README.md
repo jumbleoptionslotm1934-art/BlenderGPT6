@@ -2,7 +2,7 @@
 
 AI-powered Blender add-on for connecting Blender to OpenAI GPT models.
 
-## GPT Blend 0.5.2
+## GPT Blend 0.5.3
 
 GPT Blend uses OpenAI function calling to let the selected GPT model operate Blender through a structured tool layer instead of returning only Python code.
 
