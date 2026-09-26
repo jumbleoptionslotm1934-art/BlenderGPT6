@@ -5,7 +5,9 @@ import urllib.error
 from ..tools.registry import get_tools, run_tool
 
 API_URL = "https://api.openai.com/v1/responses"
-MAX_TOOL_ROUNDS = 20
+MAX_TOOL_ROUNDS = 100
+MAX_TOTAL_TOOL_CALLS = 150
+MAX_IDENTICAL_TOOL_CALLS = 4
 
 
 class GPTBlendError(Exception):
@@ -74,7 +76,16 @@ def send_message(api_key, model, user_message, context_text="", history=None):
         "parallel_tool_calls": False,
     }
 
+    tool_call_count = 0
+    last_signature = None
+    identical_call_count = 0
+
     for _ in range(MAX_TOOL_ROUNDS):
+        if tool_call_count >= MAX_TOTAL_TOOL_CALLS:
+            raise GPTBlendError(
+                f"GPT Blend stopped after {MAX_TOTAL_TOOL_CALLS} total tool calls to prevent runaway execution."
+            )
+
         data = _request(api_key, payload)
         tool_calls = [item for item in data.get("output", []) if item.get("type") == "function_call"]
 
@@ -83,13 +94,33 @@ def send_message(api_key, model, user_message, context_text="", history=None):
 
         tool_outputs = []
         for call in tool_calls:
+            tool_call_count += 1
+
             try:
                 arguments = json.loads(call.get("arguments", "{}"))
-                result = run_tool(call.get("name"), arguments)
             except json.JSONDecodeError as exc:
                 result = {"ok": False, "message": f"Invalid tool arguments: {exc}"}
-            except Exception as exc:
-                result = {"ok": False, "message": f"Tool execution error: {exc}"}
+            else:
+                signature = json.dumps(
+                    {"name": call.get("name"), "arguments": arguments},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                if signature == last_signature:
+                    identical_call_count += 1
+                else:
+                    identical_call_count = 1
+                    last_signature = signature
+
+                if identical_call_count > MAX_IDENTICAL_TOOL_CALLS:
+                    raise GPTBlendError(
+                        f"GPT Blend stopped because the same tool call repeated {MAX_IDENTICAL_TOOL_CALLS} times."
+                    )
+
+                try:
+                    result = run_tool(call.get("name"), arguments)
+                except Exception as exc:
+                    result = {"ok": False, "message": f"Tool execution error: {exc}"}
 
             tool_outputs.append({
                 "type": "function_call_output",
