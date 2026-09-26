@@ -3,7 +3,7 @@ from bpy.types import AddonPreferences
 from bpy.props import StringProperty, EnumProperty
 
 class GPTBlendPreferences(AddonPreferences):
-    bl_idname = __package__.split(".")[0]
+    bl_idname = __package__
 
     api_key: StringProperty(
         name="OpenAI API Key",
@@ -39,4 +39,4 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
 def get_preferences():
-    return bpy.context.preferences.addons[__package__.split(".")[0]].preferences
+    return bpy.context.preferences.addons[__package__].preferences
