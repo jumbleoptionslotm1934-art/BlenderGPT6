@@ -82,6 +82,7 @@ def _poll_active_job():
         props.status = snapshot["status"]
 
         props.tool_calls = snapshot["tool_calls"]
+        props.elapsed_seconds = f'{snapshot["elapsed_seconds"]:.1f}'
         props.activity_log = "\n".join(snapshot["events"][-20:])
 
         if snapshot["done"]:
@@ -215,6 +216,7 @@ class GPTBlendNewChatOperator(Operator):
         props.chat_log = ""
         props.activity_log = ""
         props.tool_calls = 0
+        props.elapsed_seconds = "0.0"
         props.status = "New session"
         return {"FINISHED"}
 
@@ -229,6 +231,7 @@ class GPTBlendClearOperator(Operator):
         context.scene.gptblend_props.status = "Ready"
         context.scene.gptblend_props.activity_log = ""
         context.scene.gptblend_props.tool_calls = 0
+        context.scene.gptblend_props.elapsed_seconds = "0.0"
         return {"FINISHED"}
 
 
