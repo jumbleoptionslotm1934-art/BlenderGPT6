@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "gptblend"
-version = "0.5.3"
+version = "0.5.4"
 name = "GPT Blend"
 tagline = "Connect Blender to OpenAI GPT models"
 maintainer = "GPT Blend contributors"
