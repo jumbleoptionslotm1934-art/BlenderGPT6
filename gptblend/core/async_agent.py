@@ -1,5 +1,6 @@
 import queue
 import threading
+import time
 from dataclasses import dataclass, field
 
 from .client import send_message, GPTBlendError
@@ -54,6 +55,7 @@ class AsyncAgentJob:
         self.output = None
         self.tool_calls = 0
         self.events = []
+        self.started_at = time.monotonic()
 
         self.thread = threading.Thread(
             target=self._run,
@@ -150,5 +152,6 @@ class AsyncAgentJob:
                 "output": self.output,
                 "tool_calls": self.tool_calls,
                 "events": list(self.events),
+                "elapsed_seconds": round(time.monotonic() - self.started_at, 2),
                 "done": self.done_event.is_set(),
             }
