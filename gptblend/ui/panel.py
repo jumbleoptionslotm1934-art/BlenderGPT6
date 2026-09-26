@@ -1,6 +1,7 @@
 import bpy
 from bpy.types import Panel, PropertyGroup
 from bpy.props import StringProperty, PointerProperty
+from ..preferences import get_preferences
 
 class GPTBlendSceneProperties(PropertyGroup):
     prompt: StringProperty(name="Prompt", default="")
@@ -17,7 +18,7 @@ class GPTBlendPanel(Panel):
     def draw(self, context):
         layout = self.layout
         props = context.scene.gptblend_props
-        prefs = context.preferences.addons[__package__.split(".")[0]].preferences
+        prefs = get_preferences()
         layout.label(text="GPT Blend", icon="WORLD")
         if prefs.api_key:
             row = layout.row()
