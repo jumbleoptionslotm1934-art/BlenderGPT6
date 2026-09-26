@@ -1612,12 +1612,19 @@ def set_animation_cycles(object_name, mode_before, mode_after, cycles_before, cy
         cycles = next((modifier for modifier in fcurve.modifiers if modifier.type == "CYCLES"), None)
         if cycles is None:
             cycles = fcurve.modifiers.new("CYCLES")
-        try:
-            index = list(fcurve.modifiers).index(cycles)
-            if index != 0:
-                fcurve.modifiers.move(index, 0)
-        except Exception:
-            pass
+        modifiers = list(fcurve.modifiers)
+        if cycles not in modifiers:
+            return _result(False, f"Could not register a Cycles modifier on {obj.name}.")
+        index = modifiers.index(cycles)
+        if index != 0:
+            # Blender requires Cycles to be the first F-Curve modifier.
+            fcurve.modifiers.remove(cycles)
+            return _result(
+                False,
+                f"Cannot safely add Cycles to {obj.name}: an existing F-Curve modifier "
+                "would place Cycles after another modifier. Remove/reorder the other "
+                "animation modifier first.",
+            )
 
         cycles.mode_before = mode_before
         cycles.mode_after = mode_after
