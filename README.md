@@ -2,51 +2,97 @@
 
 AI-powered Blender add-on for connecting Blender to OpenAI GPT models.
 
-## Current capabilities
+## GPT Blend 0.3
 
-GPT Blend now uses OpenAI function calling to let the selected GPT model operate Blender through a controlled tool layer instead of returning only Python code.
+GPT Blend uses OpenAI function calling to let the selected GPT model operate Blender through a structured tool layer instead of returning only Python code.
+
+### Agent improvements
+
+- Up to **100 model/tool continuation rounds** per request by default.
+- A separate **150 total tool-call safety cap** by default.
+- Optional repeated-call loop protection.
+- Automatic retries for transient network/API failures.
+- Persistent multi-turn sessions using the Responses API response chain.
+- Model-specific sessions: changing models starts a new session automatically.
+- Manual **New Chat** control.
+- Blender undo checkpoints before GPT-driven edits.
 
 ### Scene and object control
-- Inspect the scene
-- Inspect an individual object
-- Create primitives
-- Transform objects
-- Rename objects
-- Duplicate objects
-- Delete objects when explicitly requested
-- Select objects
-- Hide or unhide objects
-- Change render visibility
 
-### Modeling and shading
-- Set viewport object colors
-- Create and assign materials
-- Add Bevel modifiers
-- Add Subdivision Surface modifiers
-- Remove modifiers
-- Apply modifiers
-- Smooth or flat shade meshes
-- Join objects
-- Set object origins
-- Parent objects
+- Inspect the scene.
+- Inspect individual objects.
+- Create cubes, spheres, cylinders, cones, toruses, and planes.
+- Transform objects.
+- Move objects by relative offsets.
+- Rotate objects by relative angles.
+- Set exact object dimensions.
+- Apply object scale.
+- Rename objects.
+- Duplicate objects.
+- Delete objects when explicitly requested.
+- Select multiple objects.
+- Batch-transform objects.
+- Arrange objects in a line.
+- Align objects.
+- Distribute objects evenly.
+- Hide/unhide objects.
+- Change render visibility.
+- Parent objects.
+- Create Empty helpers.
+- Set object origins.
+
+### Materials and shading
+
+- Create/update Principled materials.
+- Assign base color, metallic, and roughness.
+- Set viewport display colors.
+- Smooth or flat shade meshes.
+
+### Modeling and modifiers
+
+- Bevel.
+- Subdivision Surface.
+- Array.
+- Mirror.
+- Solidify.
+- Boolean.
+- Shrinkwrap.
+- Simple Deform.
+- Decimate.
+- Weighted Normal.
+- Remove modifiers.
+- Apply modifiers.
+- Join objects.
+- Create Bezier curves.
+- Create 3D text.
 
 ### Scene organization
-- Create collections
-- Move objects between collections
-- Inspect collection membership
 
-### Scene setup
-- Create Point, Area, Sun, and Spot lights
-- Create cameras and make one the active camera
-- Change the world background
-- Create 3D text
+- Create collections.
+- Move objects between collections.
+- Inspect collection membership.
 
-The current tool layer contains the original six Blender operations plus 20 additional capabilities.
+### Lighting and cameras
+
+- Create Point, Area, Sun, and Spot lights.
+- Create cameras.
+- Make a camera the active scene camera.
+- Aim an object or camera at another object.
+- Change the world background.
+
+### Rendering
+
+- Configure render engine.
+- Configure resolution.
+- Configure resolution percentage.
+- Configure frame rate.
+
+The tool layer currently contains **46 model-facing Blender tools**.
 
 ## Installation
 
-1. Download or clone this repository.
-2. Install the extension from Blender Preferences > Get Extensions > Install from Disk, using the repository package.
+1. Download the repository and package it as a Blender extension.
+2. Install it from Blender Preferences > Get Extensions > Install from Disk.
 3. Enable GPT Blend.
 4. Open the 3D View sidebar (N) and select GPT Blend.
 5. Configure your OpenAI API key in Preferences.
@@ -55,19 +101,24 @@ Never commit your API key.
 
 ## Example prompts
 
-- "Create three cubes in a row, 2 meters apart."
-- "Make the middle cube blue and slightly metallic."
-- "Add a small bevel and smooth shading to the selected object."
-- "Create a collection called Environment and move the selected objects into it."
-- "Add an area light above the scene and make it the main light."
-- "Create a camera at this location and make it the active camera."
-- "Put the text 'GPT Blend' above the scene."
+- "Build a simple wooden table with four legs and a beveled top."
+- "Arrange these five objects in a row with 2 meters between each."
+- "Make the selected object blue, metallic, slightly rough, and smoothly shaded."
+- "Mirror this mesh across X and add a small bevel."
+- "Use this object as a Boolean cutter and subtract it from the main mesh."
+- "Create an Area light above the scene, point it at the model, and set up a camera."
+- "Create a collection called Environment and organize the scene into it."
+- "Set the render to 1920x1080 at 60 FPS."
+- "Inspect the selected object and tell me what modifiers and materials it has."
+- "Create a New Chat and start a completely different task."
 
 ## Safety and scope
 
-GPT Blend keeps tool inputs structured and limited to explicit Blender operations. The model is instructed to avoid unnecessary edits and never delete objects unless the user explicitly asks for deletion.
+GPT Blend uses structured Blender operations rather than unrestricted generated Python. The model is instructed to avoid unnecessary edits and never delete objects unless the user explicitly requests deletion.
 
-The current network request is synchronous, so Blender may remain busy while a request is being processed. Async execution and richer visual workspace understanding are planned next.
+Mutating GPT operations create Blender undo checkpoints when Blender permits them.
+
+The current request execution remains synchronous, so Blender can stay busy while a long model/tool sequence is running. Async main-thread-safe execution and richer visual workspace understanding are the next major architectural upgrades.
 
 ## Development
 
