@@ -51,6 +51,12 @@ class GPTBlendPreferences(AddonPreferences):
         default=False,
     )
 
+    include_viewport_snapshot: BoolProperty(
+        name="Send Viewport Snapshot",
+        description="Include a screenshot of the active 3D Viewport with each new prompt so GPT can reason about visible layout, materials, and composition.",
+        default=True,
+    )
+
     def draw(self, context):
         layout = self.layout
         layout.label(text="GPT Blend — OpenAI")
@@ -63,6 +69,7 @@ class GPTBlendPreferences(AddonPreferences):
         box.prop(self, "max_total_tool_calls")
         box.prop(self, "loop_protection")
         box.prop(self, "allow_destructive_operations")
+        box.prop(self, "include_viewport_snapshot")
 
 
 classes = (GPTBlendPreferences,)
