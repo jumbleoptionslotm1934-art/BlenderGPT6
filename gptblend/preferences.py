@@ -45,6 +45,12 @@ class GPTBlendPreferences(AddonPreferences):
         default=True,
     )
 
+    allow_destructive_operations: BoolProperty(
+        name="Allow Destructive Operations",
+        description="Allow GPT Blend to delete objects, apply modifiers, and join objects without an additional confirmation step.",
+        default=False,
+    )
+
     def draw(self, context):
         layout = self.layout
         layout.label(text="GPT Blend — OpenAI")
@@ -56,6 +62,7 @@ class GPTBlendPreferences(AddonPreferences):
         box.prop(self, "max_tool_rounds")
         box.prop(self, "max_total_tool_calls")
         box.prop(self, "loop_protection")
+        box.prop(self, "allow_destructive_operations")
 
 
 classes = (GPTBlendPreferences,)
