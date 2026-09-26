@@ -355,4 +355,305 @@ TOOLS = [
         },
         "strict": True,
     },
+,
+    
+    # 20 advanced workflow and modeling capabilities.
+    {
+        "type": "function", "name": "move_object_delta",
+        "description": "Move an existing object by a relative XYZ offset in Blender units.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "offset": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["name", "offset"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "rotate_object_delta",
+        "description": "Rotate an existing object by relative Euler angle deltas in degrees.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "rotation_delta_degrees": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["name", "rotation_delta_degrees"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "set_object_dimensions",
+        "description": "Set the world-space dimensions of an object in XYZ Blender units.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "dimensions": {"type": "array", "items": {"type": "number", "minimum": 0.0001}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["name", "dimensions"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "apply_object_scale",
+        "description": "Apply an object's current scale to its underlying geometry.",
+        "parameters": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "batch_transform_objects",
+        "description": "Apply the same relative move, relative rotation, and scale multiplier to multiple named objects.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "names": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                "location_offset": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "rotation_delta_degrees": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "scale_multiplier": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["names", "location_offset", "rotation_delta_degrees", "scale_multiplier"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "arrange_objects_linear",
+        "description": "Arrange named objects evenly along an axis starting from a specified position.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "names": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                "axis": {"type": "string", "enum": ["X", "Y", "Z"]},
+                "start": {"type": "number"},
+                "spacing": {"type": "number"},
+                "preserve_other_axes": {"type": "boolean"},
+            },
+            "required": ["names", "axis", "start", "spacing", "preserve_other_axes"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "align_objects",
+        "description": "Align the origins of named objects to a common minimum, maximum, or center position along one axis.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "names": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+                "axis": {"type": "string", "enum": ["X", "Y", "Z"]},
+                "mode": {"type": "string", "enum": ["MIN", "MAX", "CENTER"]},
+            },
+            "required": ["names", "axis", "mode"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "distribute_objects",
+        "description": "Evenly distribute named objects between the first and last object's current axis positions.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "names": {"type": "array", "items": {"type": "string"}, "minItems": 3},
+                "axis": {"type": "string", "enum": ["X", "Y", "Z"]},
+            },
+            "required": ["names", "axis"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "create_empty",
+        "description": "Create a Blender Empty helper object.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "empty_type": {"type": "string", "enum": ["PLAIN_AXES", "ARROWS", "SINGLE_ARROW", "CIRCLE", "CUBE", "SPHERE", "CONE", "IMAGE"]},
+                "location": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "size": {"type": "number", "minimum": 0.001},
+            },
+            "required": ["name", "empty_type", "location", "size"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "create_bezier_curve",
+        "description": "Create a 3D Bezier curve object.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "location": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "scale": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "bevel_depth": {"type": "number", "minimum": 0},
+                "bevel_resolution": {"type": "integer", "minimum": 0, "maximum": 32},
+            },
+            "required": ["name", "location", "scale", "bevel_depth", "bevel_resolution"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_array_modifier",
+        "description": "Add an Array modifier with a fixed count and relative X/Y/Z offset.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "modifier_name": {"type": "string"},
+                "count": {"type": "integer", "minimum": 1, "maximum": 1000},
+                "relative_offset": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["object_name", "modifier_name", "count", "relative_offset"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_mirror_modifier",
+        "description": "Add a Mirror modifier using selected X/Y/Z axes.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "modifier_name": {"type": "string"},
+                "use_x": {"type": "boolean"},
+                "use_y": {"type": "boolean"},
+                "use_z": {"type": "boolean"},
+                "use_clip": {"type": "boolean"},
+            },
+            "required": ["object_name", "modifier_name", "use_x", "use_y", "use_z", "use_clip"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_solidify_modifier",
+        "description": "Add a Solidify modifier to give a mesh surface thickness.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "modifier_name": {"type": "string"},
+                "thickness": {"type": "number"},
+                "offset": {"type": "number", "minimum": -1, "maximum": 1},
+            },
+            "required": ["object_name", "modifier_name", "thickness", "offset"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_boolean_modifier",
+        "description": "Add a Boolean modifier using another mesh object as the operand.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "modifier_name": {"type": "string"},
+                "operand_name": {"type": "string"},
+                "operation": {"type": "string", "enum": ["UNION", "INTERSECT", "DIFFERENCE"]},
+            },
+            "required": ["object_name", "modifier_name", "operand_name", "operation"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_shrinkwrap_modifier",
+        "description": "Add a Shrinkwrap modifier that conforms a mesh to a target object.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "modifier_name": {"type": "string"},
+                "target_name": {"type": "string"},
+                "offset": {"type": "number"},
+            },
+            "required": ["object_name", "modifier_name", "target_name", "offset"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_simple_deform_modifier",
+        "description": "Add a Simple Deform modifier for twist, bend, taper, or stretch.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "modifier_name": {"type": "string"},
+                "deform_method": {"type": "string", "enum": ["TWIST", "BEND", "TAPER", "STRETCH"]},
+                "deform_axis": {"type": "string", "enum": ["X", "Y", "Z"]},
+                "angle_degrees": {"type": "number"},
+            },
+            "required": ["object_name", "modifier_name", "deform_method", "deform_axis", "angle_degrees"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_decimate_modifier",
+        "description": "Add a Decimate modifier to reduce mesh geometry by a ratio.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "modifier_name": {"type": "string"},
+                "ratio": {"type": "number", "minimum": 0.01, "maximum": 1},
+            },
+            "required": ["object_name", "modifier_name", "ratio"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "add_weighted_normal_modifier",
+        "description": "Add a Weighted Normal modifier to improve hard-surface shading.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "modifier_name": {"type": "string"},
+                "keep_sharp": {"type": "boolean"},
+            },
+            "required": ["object_name", "modifier_name", "keep_sharp"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "aim_object_at",
+        "description": "Rotate an object so its local -Z axis points toward another object while keeping local Y as the up direction.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "target_name": {"type": "string"},
+            },
+            "required": ["object_name", "target_name"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "set_render_settings",
+        "description": "Configure scene render engine, resolution, resolution percentage, and frame rate.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "engine": {"type": "string", "enum": ["BLENDER_EEVEE_NEXT", "BLENDER_WORKBENCH", "CYCLES"]},
+                "resolution_x": {"type": "integer", "minimum": 16, "maximum": 16384},
+                "resolution_y": {"type": "integer", "minimum": 16, "maximum": 16384},
+                "resolution_percentage": {"type": "integer", "minimum": 1, "maximum": 100},
+                "fps": {"type": "number", "minimum": 1, "maximum": 240},
+            },
+            "required": ["engine", "resolution_x", "resolution_y", "resolution_percentage", "fps"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
 ]
