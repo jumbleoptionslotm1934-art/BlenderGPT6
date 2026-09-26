@@ -111,6 +111,27 @@ def inspect_scene():
         object_count=len(all_objects),
         objects_returned=len(objects),
         truncated=len(all_objects) > max_objects,
+        animation={
+            "fps": float(scene.render.fps),
+            "start_frame": scene.frame_start,
+            "end_frame": scene.frame_end,
+            "current_frame": scene.frame_current,
+            "markers": [
+                {
+                    "name": marker.name,
+                    "frame": marker.frame,
+                    "camera": marker.camera.name if marker.camera else None,
+                }
+                for marker in scene.timeline_markers
+            ],
+        },
+        render={
+            "engine": scene.render.engine,
+            "resolution": [scene.render.resolution_x, scene.render.resolution_y],
+            "resolution_percentage": scene.render.resolution_percentage,
+            "output_path": scene.render.filepath,
+            "image_format": scene.render.image_settings.file_format,
+        },
         objects=objects,
     )
 
