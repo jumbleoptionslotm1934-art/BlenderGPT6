@@ -24,15 +24,29 @@ def _get_object(name):
     return bpy.data.objects.get(name)
 
 
+def _collection_in_scene(collection, scene):
+    if collection == scene.collection:
+        return True
+    stack = list(scene.collection.children)
+    visited = set()
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        if current == collection:
+            return True
+        stack.extend(current.children)
+    return False
+
+
 def _get_collection(name, scene=None):
     collection = bpy.data.collections.get(name)
     if collection is None:
         return None
-    if scene is None:
+    if scene is None or _collection_in_scene(collection, scene):
         return collection
-    if collection == scene.collection:
-        return collection
-    return collection
+    return None
 
 
 def _set_active_only(obj):
