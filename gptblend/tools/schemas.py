@@ -767,4 +767,78 @@ TOOLS = [
         },
         "strict": True,
     }
+,
+    {
+        "type": "function", "name": "set_animation_timing",
+        "description": "Set Blender scene animation FPS, start frame, end frame, and current frame.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "fps": {"type": "number", "minimum": 1, "maximum": 240},
+                "start_frame": {"type": "integer", "minimum": 1, "maximum": 100000},
+                "end_frame": {"type": "integer", "minimum": 1, "maximum": 100000},
+                "current_frame": {"type": "integer", "minimum": 1, "maximum": 100000}
+            },
+            "required": ["fps", "start_frame", "end_frame", "current_frame"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "animate_object_transform",
+        "description": "Create or replace transform keyframes for an object, camera, or light. Each keyframe defines exact location, rotation in degrees, scale, and interpolation.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "keyframes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "frame": {"type": "integer", "minimum": 1, "maximum": 100000},
+                            "location": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                            "rotation_degrees": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                            "scale": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                            "interpolation": {"type": "string", "enum": ["BEZIER", "LINEAR", "CONSTANT", "SINE", "QUAD", "CUBIC", "QUART", "QUINT", "EXPO", "CIRC", "BACK", "BOUNCE", "ELASTIC"]}
+                        },
+                        "required": ["frame", "location", "rotation_degrees", "scale", "interpolation"],
+                        "additionalProperties": False
+                    }
+                },
+                "clear_existing": {"type": "boolean"}
+            },
+            "required": ["object_name", "keyframes", "clear_existing"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "clear_object_animation",
+        "description": "Remove all animation data and the action from an object.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"}
+            },
+            "required": ["object_name"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "set_animation_interpolation",
+        "description": "Set the interpolation of every keyframe point on an object's current action.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "interpolation": {"type": "string", "enum": ["BEZIER", "LINEAR", "CONSTANT", "SINE", "QUAD", "CUBIC", "QUART", "QUINT", "EXPO", "CIRC", "BACK", "BOUNCE", "ELASTIC"]}
+            },
+            "required": ["object_name", "interpolation"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    }
 ]
