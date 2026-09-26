@@ -689,6 +689,19 @@ TOOLS = [
         "strict": True,
     },
     {
+        "type": "function", "name": "inspect_animation",
+        "description": "Inspect an object's animation action, F-curves, keyframe counts, and frame range.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"}
+            },
+            "required": ["object_name"],
+            "additionalProperties": False
+        },
+        "strict": True,
+    },
+    {
         "type": "function", "name": "select_mesh_elements",
         "description": "Select exact mesh vertex, edge, or face indices on an object. Indices are based on the mesh data order.",
         "parameters": {
