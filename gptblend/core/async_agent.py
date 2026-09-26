@@ -22,6 +22,7 @@ class AsyncAgentJob:
         model,
         user_message,
         context_text,
+        scene_name,
         previous_response_id=None,
         max_tool_rounds=100,
         max_total_tool_calls=150,
@@ -32,6 +33,7 @@ class AsyncAgentJob:
         self.model = model
         self.user_message = user_message
         self.context_text = context_text
+        self.scene_name = scene_name
         self.previous_response_id = previous_response_id
         self.max_tool_rounds = max_tool_rounds
         self.max_total_tool_calls = max_total_tool_calls
