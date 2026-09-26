@@ -1630,12 +1630,6 @@ def animate_object_transform(object_name, keyframes, clear_existing):
         )
 
         interpolations = {item[0]: item[4] for item in normalized}
-        for data_path, values in (
-            ("location", [item[1][0] for item in normalized]),
-            ("rotation_euler_x", []),
-        ):
-            pass
-
         location_curves = [
             [item[1][axis] for item in normalized]
             for axis in range(3)
