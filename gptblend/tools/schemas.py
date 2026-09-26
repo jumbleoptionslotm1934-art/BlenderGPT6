@@ -655,4 +655,37 @@ TOOLS = [
         },
         "strict": True,
     },
+    {
+        "type": "function", "name": "set_procedural_texture",
+        "description": "Create or replace a procedural textured Principled material on an object. This creates a visible procedural color pattern and optional bump detail. Supported texture types: NOISE, VORONOI, WAVE, BRICK.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "object_name": {"type": "string"},
+                "material_name": {"type": "string"},
+                "texture_type": {"type": "string", "enum": ["NOISE", "VORONOI", "WAVE", "BRICK"]},
+                "color_a": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+                "color_b": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+                "scale": {"type": "number", "minimum": 0.01, "maximum": 100},
+                "detail": {"type": "number", "minimum": 0, "maximum": 15},
+                "roughness": {"type": "number", "minimum": 0, "maximum": 1},
+                "bump_strength": {"type": "number", "minimum": 0, "maximum": 1},
+            },
+            "required": ["object_name", "material_name", "texture_type", "color_a", "color_b", "scale", "detail", "roughness", "bump_strength"],
+            "additionalProperties": False,
+        },
+        "strict": True,
+    },
+    {
+        "type": "function", "name": "set_viewport_shading",
+        "description": "Set all visible Blender 3D Viewports to Solid, Material Preview, or Rendered shading. Material Preview is useful after assigning colors or materials.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "shading_type": {"type": "string", "enum": ["SOLID", "MATERIAL", "RENDERED"]},
+            },
+            "required": ["shading_type"], "additionalProperties": False,
+        },
+        "strict": True,
+    },
 ]
