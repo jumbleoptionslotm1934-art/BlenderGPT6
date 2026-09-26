@@ -14,6 +14,7 @@ class GPTBlendSceneProperties(PropertyGroup):
     chat_log: StringProperty(name="Chat Log", default="")
     activity_log: StringProperty(name="Activity Log", default="")
     tool_calls: IntProperty(name="Tool Calls", default=0)
+    elapsed_seconds: StringProperty(name="Elapsed", default="0.0")
 
 
 class GPTBlendPanel(Panel):
@@ -47,6 +48,8 @@ class GPTBlendPanel(Panel):
             status.label(text="Session active", icon="LINKED")
         if props.tool_calls:
             status.label(text=f"Tools: {props.tool_calls}")
+        if props.elapsed_seconds != "0.0":
+            status.label(text=f"{props.elapsed_seconds}s")
 
         history_box = layout.box()
         history_box.label(text="Chat", icon="TEXT")
