@@ -87,12 +87,12 @@ jobs:
         run: |
           "$RUNNER_TEMP/blender/blender" --command extension build \
             --source-dir gptblend \
-            --output-filepath "$RUNNER_TEMP/gptblend-0.7.0.zip"
+            --output-filepath "$RUNNER_TEMP/gptblend-0.8.0.zip"
 
       - name: Upload installable Blender extension
         uses: actions/upload-artifact@v4
         with:
-          name: gptblend-0.7.0
-          path: "${{ runner.temp }}/gptblend-0.7.0.zip"
+          name: gptblend-0.8.0
+          path: "${{ runner.temp }}/gptblend-0.8.0.zip"
           if-no-files-found: error
           retention-days: 30
