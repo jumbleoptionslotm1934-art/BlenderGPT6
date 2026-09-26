@@ -22,3 +22,31 @@ jobs:
 
       - name: Validate tool surface
         run: python tests/validate_tool_surface.py
+
+  blender-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Blender 5.2.2
+        id: blender-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/gptblend/blender-5.2.2-linux-x64.tar.xz
+          key: blender-5.2.2-linux-x64
+
+      - name: Download Blender 5.2.2
+        if: steps.blender-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.cache/gptblend
+          curl -L --fail --retry 3             -o ~/.cache/gptblend/blender-5.2.2-linux-x64.tar.xz             https://download.blender.org/release/Blender5.2/blender-5.2.2-linux-x64.tar.xz
+
+      - name: Extract Blender
+        run: |
+          mkdir -p "$RUNNER_TEMP/blender"
+          tar -xf ~/.cache/gptblend/blender-5.2.2-linux-x64.tar.xz             -C "$RUNNER_TEMP/blender" --strip-components=1
+
+      - name: Run animation runtime test
+        run: |
+          "$RUNNER_TEMP/blender/blender" -b --python tests/test_animation_runtime.py
