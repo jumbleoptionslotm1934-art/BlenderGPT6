@@ -981,14 +981,14 @@ def set_procedural_texture(
 
     texture_color = texture.outputs.get("Color")
     texture_factor = texture.outputs.get("Fac")
-    if texture_color and texture_type != "BRICK":
+    if texture_type == "BRICK" and texture_color:
+        links.new(texture_color, principled.inputs["Base Color"])
+    elif texture_color:
         links.new(texture_color, ramp.inputs["Fac"])
         links.new(ramp.outputs["Color"], principled.inputs["Base Color"])
     elif texture_factor:
         links.new(texture_factor, ramp.inputs["Fac"])
         links.new(ramp.outputs["Color"], principled.inputs["Base Color"])
-    elif texture_color:
-        links.new(texture_color, principled.inputs["Base Color"])
 
     if texture_factor and bump_strength > 0:
         links.new(texture_factor, bump.inputs["Height"])
