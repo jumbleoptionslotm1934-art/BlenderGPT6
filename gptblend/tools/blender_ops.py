@@ -381,8 +381,11 @@ def parent_object(child_name, parent_name):
         return _result(False, f"Parent object '{parent_name}' was not found.")
     if child == parent:
         return _result(False, "An object cannot parent itself.")
-    if parent in child.children:
-        return _result(False, f"'{parent.name}' is already a child of '{child.name}'.")
+    ancestor = parent
+    while ancestor is not None:
+        if ancestor == child:
+            return _result(False, f"Parenting '{child.name}' to '{parent.name}' would create a cycle.")
+        ancestor = ancestor.parent
 
     child_world = child.matrix_world.copy()
     child.parent = parent
@@ -456,7 +459,7 @@ def create_light(name, light_type, location, rotation_degrees, energy, color, si
         light_data.shadow_soft_size = float(size)
 
     light_object = bpy.data.objects.new(name=name, object_data=light_data)
-    bpy.context.collection.objects.link(light_object)
+    bpy.context.scene.collection.objects.link(light_object)
     light_object.location = location
     light_object.rotation_euler = [math.radians(v) for v in rotation_degrees]
     _set_active_only(light_object)
@@ -520,7 +523,7 @@ def create_text(name, body, location, rotation_degrees, size, extrude):
     curve.align_x = "CENTER"
 
     text_object = bpy.data.objects.new(name=name, object_data=curve)
-    bpy.context.collection.objects.link(text_object)
+    bpy.context.scene.collection.objects.link(text_object)
     text_object.location = location
     text_object.rotation_euler = [math.radians(v) for v in rotation_degrees]
     _set_active_only(text_object)
