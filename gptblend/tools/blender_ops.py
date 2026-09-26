@@ -868,6 +868,7 @@ def set_render_settings(engine, resolution_x, resolution_y, resolution_percentag
     )
 
 
+
 TOOL_HANDLERS = {
     "inspect_scene": inspect_scene,
     "create_object": create_object,
@@ -1050,7 +1051,6 @@ def set_viewport_shading(shading_type):
     if changed == 0:
         return _result(False, "No visible 3D Viewport areas were found.")
     return _result(True, f"Set {changed} 3D Viewport(s) to {shading_type.lower()} shading.")
-
 
 READ_ONLY_TOOLS = {"inspect_scene", "inspect_object"}
 
