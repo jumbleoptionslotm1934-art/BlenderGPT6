@@ -206,6 +206,38 @@ def inspect_object(name):
         "show_render": modifier.show_render,
     } for modifier in obj.modifiers]
 
+    constraints = [{
+        "name": constraint.name,
+        "type": constraint.type,
+        "target": constraint.target.name if getattr(constraint, "target", None) else None,
+    } for constraint in obj.constraints]
+
+    animation = None
+    if obj.animation_data and obj.animation_data.action:
+        action = obj.animation_data.action
+        frames = [
+            round(point.co.x, 3)
+            for fcurve in action.fcurves
+            for point in fcurve.keyframe_points
+        ]
+        animation = {
+            "action": action.name,
+            "keyframe_count": len(frames),
+            "frame_start": min(frames) if frames else None,
+            "frame_end": max(frames) if frames else None,
+        }
+
+    camera_settings = None
+    if obj.type == "CAMERA":
+        camera = obj.data
+        camera_settings = {
+            "lens": float(camera.lens),
+            "dof_enabled": bool(camera.dof.use_dof),
+            "dof_focus_object": camera.dof.focus_object.name if camera.dof.focus_object else None,
+            "dof_focus_distance": float(camera.dof.focus_distance),
+            "dof_fstop": float(camera.dof.aperture_fstop),
+        }
+
     return _result(
         True,
         f"Inspected {obj.name}.",
@@ -224,6 +256,9 @@ def inspect_object(name):
             "collections": [c.name for c in obj.users_collection],
             "materials": materials,
             "modifiers": modifiers,
+            "constraints": constraints,
+            "animation": animation,
+            "camera_settings": camera_settings,
         },
     )
 
