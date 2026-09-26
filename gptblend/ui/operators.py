@@ -1,5 +1,4 @@
 import bpy
-import json
 import time
 from bpy.types import Operator
 
