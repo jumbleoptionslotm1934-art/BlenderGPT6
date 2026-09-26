@@ -47,6 +47,7 @@ class GPTBlendSendOperator(Operator):
                 max_tool_rounds=prefs.max_tool_rounds,
                 max_total_tool_calls=prefs.max_total_tool_calls,
                 loop_protection=prefs.loop_protection,
+                allow_destructive_operations=prefs.allow_destructive_operations,
             )
             props.response = response_text or "GPT returned no text response."
             props.response_id = response_id or ""
