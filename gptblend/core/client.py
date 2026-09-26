@@ -1,4 +1,5 @@
 import json
+import time
 import urllib.request
 import urllib.error
 
@@ -8,6 +9,8 @@ API_URL = "https://api.openai.com/v1/responses"
 MAX_TOOL_ROUNDS = 100
 MAX_TOTAL_TOOL_CALLS = 150
 MAX_IDENTICAL_TOOL_CALLS = 4
+MAX_REQUEST_RETRIES = 3
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 class GPTBlendError(Exception):
@@ -15,28 +18,44 @@ class GPTBlendError(Exception):
 
 
 def _request(api_key, payload):
-    request = urllib.request.Request(
-        API_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=120) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise GPTBlendError(f"OpenAI API error ({exc.code}): {body}") from exc
-    except urllib.error.URLError as exc:
-        raise GPTBlendError(f"Network error: {exc.reason}") from exc
-    except Exception as exc:
-        raise GPTBlendError(f"Request failed: {exc}") from exc
+    last_error = None
+
+    for attempt in range(MAX_REQUEST_RETRIES + 1):
+        request = urllib.request.Request(
+            API_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            last_error = GPTBlendError(f"OpenAI API error ({exc.code}): {body}")
+            if exc.code not in RETRYABLE_STATUS_CODES or attempt >= MAX_REQUEST_RETRIES:
+                raise last_error from exc
+            time.sleep(min(2 ** attempt, 8))
+        except urllib.error.URLError as exc:
+            last_error = GPTBlendError(f"Network error: {exc.reason}")
+            if attempt >= MAX_REQUEST_RETRIES:
+                raise last_error from exc
+            time.sleep(min(2 ** attempt, 8))
+        except Exception as exc:
+            raise GPTBlendError(f"Request failed: {exc}") from exc
+
+    raise last_error or GPTBlendError("Request failed after retries.")
 
 
 def _extract_text(data):
     output = data.get("output_text")
     if output:
         return output
+
     chunks = []
     for item in data.get("output", []):
         for content in item.get("content", []):
@@ -45,9 +64,22 @@ def _extract_text(data):
     return "\n".join(chunks)
 
 
-def send_message(api_key, model, user_message, context_text="", history=None):
+def send_message(
+    api_key,
+    model,
+    user_message,
+    context_text="",
+    history=None,
+    previous_response_id=None,
+    max_tool_rounds=MAX_TOOL_ROUNDS,
+    max_total_tool_calls=MAX_TOTAL_TOOL_CALLS,
+    loop_protection=True,
+):
     if not api_key:
         raise GPTBlendError("No OpenAI API key configured.")
+
+    max_tool_rounds = max(1, min(int(max_tool_rounds), 200))
+    max_total_tool_calls = max(1, min(int(max_total_tool_calls), 500))
 
     instructions = (
         "You are GPT Blend, an interactive AI assistant inside Blender. "
@@ -76,21 +108,24 @@ def send_message(api_key, model, user_message, context_text="", history=None):
         "parallel_tool_calls": False,
     }
 
+    if previous_response_id:
+        payload["previous_response_id"] = previous_response_id
+
     tool_call_count = 0
     last_signature = None
     identical_call_count = 0
 
-    for _ in range(MAX_TOOL_ROUNDS):
-        if tool_call_count >= MAX_TOTAL_TOOL_CALLS:
+    for _ in range(max_tool_rounds):
+        if tool_call_count >= max_total_tool_calls:
             raise GPTBlendError(
-                f"GPT Blend stopped after {MAX_TOTAL_TOOL_CALLS} total tool calls to prevent runaway execution."
+                f"GPT Blend stopped after {max_total_tool_calls} total tool calls to prevent runaway execution."
             )
 
         data = _request(api_key, payload)
         tool_calls = [item for item in data.get("output", []) if item.get("type") == "function_call"]
 
         if not tool_calls:
-            return _extract_text(data), data.get("output", [])
+            return _extract_text(data), data.get("output", []), data.get("id")
 
         tool_outputs = []
         for call in tool_calls:
@@ -106,15 +141,17 @@ def send_message(api_key, model, user_message, context_text="", history=None):
                     sort_keys=True,
                     separators=(",", ":"),
                 )
+
                 if signature == last_signature:
                     identical_call_count += 1
                 else:
                     identical_call_count = 1
                     last_signature = signature
 
-                if identical_call_count > MAX_IDENTICAL_TOOL_CALLS:
+                if loop_protection and identical_call_count > MAX_IDENTICAL_TOOL_CALLS:
                     raise GPTBlendError(
-                        f"GPT Blend stopped because the same tool call repeated {MAX_IDENTICAL_TOOL_CALLS} times."
+                        f"GPT Blend stopped because the same tool call repeated "
+                        f"{MAX_IDENTICAL_TOOL_CALLS} times."
                     )
 
                 try:
@@ -136,4 +173,6 @@ def send_message(api_key, model, user_message, context_text="", history=None):
             "parallel_tool_calls": False,
         }
 
-    raise GPTBlendError("GPT Blend reached the maximum number of tool rounds.")
+    raise GPTBlendError(
+        f"GPT Blend reached the configured maximum of {max_tool_rounds} agent rounds."
+    )
