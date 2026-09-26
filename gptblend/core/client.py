@@ -192,7 +192,7 @@ def send_message(
                     )
 
                 if (
-                    call.get("name") in {"delete_object", "apply_modifier", "join_objects"}
+                    call.get("name") in {"delete_object", "apply_modifier", "join_objects", "merge_selected_vertices", "dissolve_selected"}
                     and not allow_destructive_operations
                 ):
                     result = {
