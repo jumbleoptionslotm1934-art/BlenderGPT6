@@ -13,6 +13,17 @@ _ACTIVE_JOB = None
 _TIMER_REGISTERED = False
 
 
+def _unregister_timer():
+    global _TIMER_REGISTERED
+    if not _TIMER_REGISTERED:
+        return
+    try:
+        bpy.app.timers.unregister(_poll_active_job)
+    except Exception:
+        pass
+    _TIMER_REGISTERED = False
+
+
 def _append_chat(props, role, message):
     lines = props.chat_log.splitlines() if props.chat_log else []
     lines.append(
@@ -69,6 +80,10 @@ def _poll_active_job():
         props.status = snapshot["status"]
 
         props.tool_calls = snapshot["tool_calls"]
+        usage = snapshot.get("usage") or {}
+        props.input_tokens = int(usage.get("input_tokens", 0) or 0)
+        props.output_tokens = int(usage.get("output_tokens", 0) or 0)
+        props.total_tokens = int(usage.get("total_tokens", 0) or 0)
         props.elapsed_seconds = f'{snapshot["elapsed_seconds"]:.1f}'
         props.activity_log = "\n".join(snapshot["events"][-20:])
 
@@ -142,6 +157,7 @@ class GPTBlendSendOperator(Operator):
         )
 
         _append_chat(props, "user", prompt)
+        props.last_prompt = prompt
 
         job = AsyncAgentJob(
             api_key=prefs.api_key,
@@ -165,6 +181,37 @@ class GPTBlendSendOperator(Operator):
 
         job.start()
         _ensure_timer()
+        return {"FINISHED"}
+
+
+class GPTBlendRetryOperator(Operator):
+    bl_idname = "gptblend.retry"
+    bl_label = "Retry Last Prompt"
+
+    def execute(self, context):
+        props = context.scene.gptblend_props
+        if _ACTIVE_JOB is not None:
+            props.response = "GPT Blend is already working."
+            return {"FINISHED"}
+        if not props.last_prompt.strip():
+            props.response = "No previous prompt is available to retry."
+            props.status = "Waiting for prompt"
+            return {"FINISHED"}
+
+        props.prompt = props.last_prompt
+        return bpy.ops.gptblend.send()
+
+
+class GPTBlendCopyResponseOperator(Operator):
+    bl_idname = "gptblend.copy_response"
+    bl_label = "Copy Response"
+
+    def execute(self, context):
+        response = context.scene.gptblend_props.response
+        if not response:
+            return {"CANCELLED"}
+        context.window_manager.clipboard = response
+        context.scene.gptblend_props.status = "Response copied"
         return {"FINISHED"}
 
 
@@ -194,6 +241,7 @@ class GPTBlendNewChatOperator(Operator):
         if _ACTIVE_JOB is not None:
             _ACTIVE_JOB.cancel()
             _ACTIVE_JOB = None
+        _unregister_timer()
 
         props = context.scene.gptblend_props
         props.response = ""
@@ -201,6 +249,7 @@ class GPTBlendNewChatOperator(Operator):
         props.response_id = ""
         props.session_model = ""
         props.chat_log = ""
+        props.last_prompt = ""
         props.activity_log = ""
         props.tool_calls = 0
         props.elapsed_seconds = "0.0"
@@ -218,9 +267,11 @@ class GPTBlendClearOperator(Operator):
         if _ACTIVE_JOB is not None:
             _ACTIVE_JOB.cancel()
             _ACTIVE_JOB = None
+        _unregister_timer()
 
         context.scene.gptblend_props.response = ""
         context.scene.gptblend_props.prompt = ""
+        context.scene.gptblend_props.last_prompt = ""
         context.scene.gptblend_props.status = "Ready"
         context.scene.gptblend_props.activity_log = ""
         context.scene.gptblend_props.tool_calls = 0
@@ -231,6 +282,8 @@ class GPTBlendClearOperator(Operator):
 classes = (
     GPTBlendConfigureOperator,
     GPTBlendSendOperator,
+    GPTBlendRetryOperator,
+    GPTBlendCopyResponseOperator,
     GPTBlendStopOperator,
     GPTBlendNewChatOperator,
     GPTBlendClearOperator,
