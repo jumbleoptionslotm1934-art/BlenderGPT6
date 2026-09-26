@@ -1252,6 +1252,163 @@ def unwrap_uv(object_name, method):
             pass
 
 
+
+# ---------------------------------------------------------------------------
+# Animation workflow tools
+# ---------------------------------------------------------------------------
+
+def set_animation_timing(fps, start_frame, end_frame, current_frame):
+    scene = bpy.context.scene
+    start_frame = int(start_frame)
+    end_frame = int(end_frame)
+    current_frame = int(current_frame)
+
+    if start_frame < 1:
+        return _result(False, "Start frame must be at least 1.")
+    if end_frame < start_frame:
+        return _result(False, "End frame must be greater than or equal to start frame.")
+    if current_frame < start_frame or current_frame > end_frame:
+        return _result(False, "Current frame must be inside the animation range.")
+    if float(fps) <= 0:
+        return _result(False, "FPS must be greater than 0.")
+
+    scene.render.fps = float(fps)
+    scene.frame_start = start_frame
+    scene.frame_end = end_frame
+    scene.frame_set(current_frame)
+
+    return _result(
+        True,
+        "Updated animation timing.",
+        fps=float(scene.render.fps),
+        start_frame=scene.frame_start,
+        end_frame=scene.frame_end,
+        current_frame=scene.frame_current,
+    )
+
+
+def animate_object_transform(object_name, keyframes, clear_existing):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if not keyframes:
+        return _result(False, "At least one keyframe is required.")
+
+    error = _ensure_object_mode()
+    if error:
+        return error
+
+    scene = bpy.context.scene
+    original_frame = scene.frame_current
+    interpolation_allowed = {
+        "BEZIER", "LINEAR", "CONSTANT", "SINE", "QUAD", "CUBIC",
+        "QUART", "QUINT", "EXPO", "CIRC", "BACK", "BOUNCE", "ELASTIC",
+    }
+
+    try:
+        if clear_existing:
+            obj.animation_data_clear()
+
+        normalized = []
+        for keyframe in keyframes:
+            frame = int(keyframe["frame"])
+            if frame < 1:
+                return _result(False, f"Invalid keyframe frame {frame}. Frames must be at least 1.")
+
+            interpolation = str(keyframe.get("interpolation", "BEZIER")).upper()
+            if interpolation not in interpolation_allowed:
+                return _result(False, f"Unsupported interpolation '{interpolation}'.")
+
+            location = [float(v) for v in keyframe["location"]]
+            rotation = [math.radians(float(v)) for v in keyframe["rotation_degrees"]]
+            scale = [float(v) for v in keyframe["scale"]]
+            normalized.append((frame, location, rotation, scale, interpolation))
+
+        normalized.sort(key=lambda item: item[0])
+
+        if len(normalized) > 1 and len({item[0] for item in normalized}) != len(normalized):
+            return _result(False, "Keyframes must use distinct frame numbers.")
+
+        for frame, location, rotation, scale, interpolation in normalized:
+            scene.frame_set(frame)
+            obj.location = location
+            obj.rotation_euler = rotation
+            obj.scale = scale
+
+            obj.keyframe_insert(data_path="location", frame=frame, group="GPT Blend Transform")
+            obj.keyframe_insert(data_path="rotation_euler", frame=frame, group="GPT Blend Transform")
+            obj.keyframe_insert(data_path="scale", frame=frame, group="GPT Blend Transform")
+
+        action = obj.animation_data.action if obj.animation_data else None
+        if action:
+            for fcurve in action.fcurves:
+                for key in fcurve.keyframe_points:
+                    key_frame = int(round(key.co.x))
+                    for authored_frame, _, _, _, interpolation in normalized:
+                        if key_frame == authored_frame:
+                            key.interpolation = interpolation
+                            break
+
+        scene.frame_set(max(scene.frame_start, min(original_frame, scene.frame_end)))
+
+        return _result(
+            True,
+            f"Animated {obj.name} with {len(normalized)} transform keyframe(s).",
+            object_name=obj.name,
+            keyframes=[frame for frame, _, _, _, _ in normalized],
+            start_frame=normalized[0][0],
+            end_frame=normalized[-1][0],
+            interpolation_summary=sorted({item[4] for item in normalized}),
+        )
+    except Exception as exc:
+        try:
+            scene.frame_set(max(scene.frame_start, min(original_frame, scene.frame_end)))
+        except Exception:
+            pass
+        return _result(False, f"Could not animate '{obj.name}': {exc}")
+
+
+def clear_object_animation(object_name):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+
+    had_animation = bool(obj.animation_data)
+    obj.animation_data_clear()
+    return _result(
+        True,
+        f"Cleared animation from {obj.name}." if had_animation else f"{obj.name} had no animation to clear.",
+        had_animation=had_animation,
+    )
+
+
+def set_animation_interpolation(object_name, interpolation):
+    obj = _get_object(object_name)
+    if obj is None:
+        return _result(False, f"Object '{object_name}' was not found.")
+    if not obj.animation_data or not obj.animation_data.action:
+        return _result(False, f"Object '{obj.name}' has no action to edit.")
+
+    interpolation = str(interpolation).upper()
+    allowed = {
+        "BEZIER", "LINEAR", "CONSTANT", "SINE", "QUAD", "CUBIC",
+        "QUART", "QUINT", "EXPO", "CIRC", "BACK", "BOUNCE", "ELASTIC",
+    }
+    if interpolation not in allowed:
+        return _result(False, f"Unsupported interpolation '{interpolation}'.")
+
+    changed = 0
+    for fcurve in obj.animation_data.action.fcurves:
+        for key in fcurve.keyframe_points:
+            key.interpolation = interpolation
+            changed += 1
+
+    return _result(
+        True,
+        f"Set {changed} animation keyframe point(s) on {obj.name} to {interpolation.lower()} interpolation.",
+        keyframes_changed=changed,
+    )
+
 TOOL_HANDLERS = {
     "inspect_scene": inspect_scene,
     "create_object": create_object,
@@ -1307,6 +1464,10 @@ TOOL_HANDLERS = {
     "dissolve_selected": dissolve_selected,
     "extrude_selected_faces": extrude_selected_faces,
     "unwrap_uv": unwrap_uv,
+    "set_animation_timing": set_animation_timing,
+    "animate_object_transform": animate_object_transform,
+    "clear_object_animation": clear_object_animation,
+    "set_animation_interpolation": set_animation_interpolation,
 }
 
 READ_ONLY_TOOLS = {"inspect_scene", "inspect_object"}
