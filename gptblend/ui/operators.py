@@ -1,14 +1,37 @@
 import bpy
+import json
+import time
 from bpy.types import Operator
 
 from ..preferences import get_preferences
 from ..context.scene import get_scene_context
+from ..context.viewport import capture_viewport_data_url
 from ..core.async_agent import AsyncAgentJob
 from ..tools.registry import run_tool
 
 
 _ACTIVE_JOB = None
 _TIMER_REGISTERED = False
+
+
+def _append_chat(props, role, message):
+    try:
+        entries = json.loads(props.chat_log or "[]")
+        if not isinstance(entries, list):
+            entries = []
+    except Exception:
+        entries = []
+
+    entries.append({
+        "role": role,
+        "text": str(message),
+        "time": time.strftime("%H:%M:%S"),
+    })
+    entries = entries[-40:]
+    props.chat_log = "\n".join(
+        f"[{entry['time']}] {entry['role'].upper()}: {entry['text']}"
+        for entry in entries
+    )
 
 
 def _scene_props():
@@ -58,11 +81,17 @@ def _poll_active_job():
     if props is not None:
         props.status = snapshot["status"]
 
+        props.tool_calls = snapshot["tool_calls"]
+        props.activity_log = "\n".join(snapshot["events"][-20:])
+
         if snapshot["done"]:
             if snapshot["error"]:
                 props.response = snapshot["error"]
+                if snapshot["status"] != "Cancelled":
+                    _append_chat(props, "assistant", snapshot["error"])
             elif snapshot["response_text"]:
                 props.response = snapshot["response_text"]
+                _append_chat(props, "assistant", snapshot["response_text"])
 
             if snapshot["response_id"]:
                 props.response_id = snapshot["response_id"]
@@ -118,6 +147,14 @@ class GPTBlendSendOperator(Operator):
             else None
         )
 
+        viewport_image = (
+            capture_viewport_data_url()
+            if prefs.include_viewport_snapshot
+            else None
+        )
+
+        _append_chat(props, "user", prompt)
+
         job = AsyncAgentJob(
             api_key=prefs.api_key,
             model=prefs.model,
@@ -129,6 +166,7 @@ class GPTBlendSendOperator(Operator):
             max_total_tool_calls=prefs.max_total_tool_calls,
             loop_protection=prefs.loop_protection,
             allow_destructive_operations=prefs.allow_destructive_operations,
+            viewport_image_data_url=viewport_image,
         )
 
         _ACTIVE_JOB = job
@@ -167,12 +205,16 @@ class GPTBlendNewChatOperator(Operator):
 
         if _ACTIVE_JOB is not None:
             _ACTIVE_JOB.cancel()
+            _ACTIVE_JOB = None
 
         props = context.scene.gptblend_props
         props.response = ""
         props.prompt = ""
         props.response_id = ""
         props.session_model = ""
+        props.chat_log = ""
+        props.activity_log = ""
+        props.tool_calls = 0
         props.status = "New session"
         return {"FINISHED"}
 
@@ -185,6 +227,8 @@ class GPTBlendClearOperator(Operator):
         context.scene.gptblend_props.response = ""
         context.scene.gptblend_props.prompt = ""
         context.scene.gptblend_props.status = "Ready"
+        context.scene.gptblend_props.activity_log = ""
+        context.scene.gptblend_props.tool_calls = 0
         return {"FINISHED"}
 
 
