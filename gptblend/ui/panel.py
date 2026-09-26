@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import Panel, PropertyGroup
-from bpy.props import StringProperty, PointerProperty
+from bpy.props import StringProperty, PointerProperty, IntProperty
 from ..preferences import get_preferences
 
 
@@ -11,6 +11,9 @@ class GPTBlendSceneProperties(PropertyGroup):
     response_id: StringProperty(name="Response ID", default="")
     session_model: StringProperty(name="Session Model", default="")
     status: StringProperty(name="Status", default="Ready")
+    chat_log: StringProperty(name="Chat Log", default="")
+    activity_log: StringProperty(name="Activity Log", default="")
+    tool_calls: IntProperty(name="Tool Calls", default=0)
 
 
 class GPTBlendPanel(Panel):
@@ -42,6 +45,24 @@ class GPTBlendPanel(Panel):
         status.label(text=f"Status: {props.status}")
         if props.response_id:
             status.label(text="Session active", icon="LINKED")
+        if props.tool_calls:
+            status.label(text=f"Tools: {props.tool_calls}")
+
+        history_box = layout.box()
+        history_box.label(text="Chat", icon="TEXT")
+        if props.chat_log:
+            for line in props.chat_log.splitlines()[-14:]:
+                history_box.label(text=line[:180])
+        else:
+            history_box.label(text="No messages yet.")
+
+        activity_box = layout.box()
+        activity_box.label(text="Activity", icon="TIME")
+        if props.activity_log:
+            for line in props.activity_log.splitlines()[-10:]:
+                activity_box.label(text=line[:180])
+        else:
+            activity_box.label(text="Waiting for activity.")
 
         box = layout.box()
         if props.response:
