@@ -7,7 +7,7 @@ from ..preferences import get_preferences
 class GPTBlendSceneProperties(PropertyGroup):
     prompt: StringProperty(name="Prompt", default="")
     response: StringProperty(name="Response", default="")
-    model: StringProperty(name="Model", default="gpt-6-luna")
+    model: StringProperty(name="Model", default="gpt-5.6-luna")
     response_id: StringProperty(name="Response ID", default="")
     session_model: StringProperty(name="Session Model", default="")
     status: StringProperty(name="Status", default="Ready")
