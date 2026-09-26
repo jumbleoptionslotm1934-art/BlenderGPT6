@@ -28,6 +28,7 @@ class AsyncAgentJob:
         max_total_tool_calls=150,
         loop_protection=True,
         allow_destructive_operations=False,
+        viewport_image_data_url=None,
     ):
         self.api_key = api_key
         self.model = model
@@ -39,6 +40,7 @@ class AsyncAgentJob:
         self.max_total_tool_calls = max_total_tool_calls
         self.loop_protection = loop_protection
         self.allow_destructive_operations = allow_destructive_operations
+        self.viewport_image_data_url = viewport_image_data_url
 
         self.tool_queue = queue.Queue()
         self.cancel_event = threading.Event()
@@ -50,6 +52,8 @@ class AsyncAgentJob:
         self.response_text = ""
         self.response_id = None
         self.output = None
+        self.tool_calls = 0
+        self.events = []
 
         self.thread = threading.Thread(
             target=self._run,
@@ -58,7 +62,14 @@ class AsyncAgentJob:
         )
 
     def start(self):
+        self._log(f"Started {self.model} task")
         self.thread.start()
+
+    def _log(self, message):
+        with self.lock:
+            self.events.append(message)
+            if len(self.events) > 80:
+                self.events = self.events[-80:]
 
     def _set_status(self, status):
         with self.lock:
@@ -66,22 +77,30 @@ class AsyncAgentJob:
 
     def _progress(self, status):
         self._set_status(status)
+        self._log(status)
 
     def _request_tool_on_main_thread(self, name, arguments):
         if self.cancel_event.is_set():
             return {"ok": False, "cancelled": True, "message": "Task cancelled."}
 
         request = ToolRequest(name=name, arguments=arguments)
+        with self.lock:
+            self.tool_calls += 1
+        self._log(f"Tool: {name}")
         self.tool_queue.put(request)
 
         while not request.event.wait(0.05):
             if self.cancel_event.is_set():
                 return {"ok": False, "cancelled": True, "message": "Task cancelled."}
 
-        return request.result or {
+        result = request.result or {
             "ok": False,
             "message": "Blender tool returned no result.",
         }
+        self._log(
+            f"Tool result: {name} {'OK' if result.get('ok') else 'FAILED'}"
+        )
+        return result
 
     def _run(self):
         try:
@@ -98,6 +117,7 @@ class AsyncAgentJob:
                 tool_executor=self._request_tool_on_main_thread,
                 progress_callback=self._progress,
                 cancel_event=self.cancel_event,
+                viewport_image_data_url=self.viewport_image_data_url,
             )
 
             with self.lock:
@@ -128,5 +148,7 @@ class AsyncAgentJob:
                 "response_text": self.response_text,
                 "response_id": self.response_id,
                 "output": self.output,
+                "tool_calls": self.tool_calls,
+                "events": list(self.events),
                 "done": self.done_event.is_set(),
             }
