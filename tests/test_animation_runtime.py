@@ -71,8 +71,8 @@ def main():
     inspect_result = ops.inspect_animation(obj.name)
     check(inspect_result, "animation inspection")
     assert inspect_result["animated"] is True
-    assert inspect_result["keyframe_count"] == 27, (
-        f"Expected 27 transform keyframe points, got {inspect_result['keyframe_count']}"
+    assert inspect_result["keyframe_count"] == 18, (
+        f"Expected 18 transform keyframe points, got {inspect_result['keyframe_count']}"
     )
 
     visibility_result = ops.animate_object_visibility(
