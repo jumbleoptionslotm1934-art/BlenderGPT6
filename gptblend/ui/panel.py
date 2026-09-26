@@ -15,6 +15,10 @@ class GPTBlendSceneProperties(PropertyGroup):
     activity_log: StringProperty(name="Activity Log", default="")
     tool_calls: IntProperty(name="Tool Calls", default=0)
     elapsed_seconds: StringProperty(name="Elapsed", default="0.0")
+    last_prompt: StringProperty(name="Last Prompt", default="")
+    input_tokens: IntProperty(name="Input Tokens", default=0)
+    output_tokens: IntProperty(name="Output Tokens", default=0)
+    total_tokens: IntProperty(name="Total Tokens", default=0)
 
 
 class GPTBlendPanel(Panel):
@@ -50,6 +54,8 @@ class GPTBlendPanel(Panel):
             status.label(text=f"Tools: {props.tool_calls}")
         if props.elapsed_seconds != "0.0":
             status.label(text=f"{props.elapsed_seconds}s")
+        if props.total_tokens:
+            status.label(text=f"Tokens: {props.total_tokens:,}")
 
         history_box = layout.box()
         history_box.label(text="Chat", icon="TEXT")
@@ -77,13 +83,17 @@ class GPTBlendPanel(Panel):
         layout.prop(props, "prompt", text="")
 
         row = layout.row(align=True)
-        if props.status not in {"Ready", "Error", "Cancelled", "New session", "Waiting for prompt"}:
+        if props.status not in {"Ready", "Error", "Cancelled", "New session", "Waiting for prompt", "Response copied"}:
             row.operator("gptblend.stop", icon="CANCEL", text="Stop")
         else:
             row.operator("gptblend.send", icon="CONSOLE", text="Send to GPT")
+            if props.status in {"Error", "Cancelled"} and props.last_prompt:
+                row.operator("gptblend.retry", icon="FILE_REFRESH", text="Retry")
         row.operator("gptblend.new_chat", icon="FILE_NEW", text="New Chat")
 
-        layout.operator("gptblend.clear", icon="X")
+        response_actions = layout.row(align=True)
+        response_actions.operator("gptblend.copy_response", icon="COPY_ID", text="Copy Response")
+        response_actions.operator("gptblend.clear", icon="X", text="Clear")
 
 
 classes = (GPTBlendSceneProperties, GPTBlendPanel)
